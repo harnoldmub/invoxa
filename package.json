@@ -1,0 +1,24 @@
+{
+  "name": "invoxa",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SaaS multi-tenant modulaire pour gestion métier, devis et facturation.",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @invoxa/api --filter @invoxa/web dev",
+    "build": "pnpm --filter @invoxa/api build && pnpm --filter @invoxa/web build",
+    "lint": "pnpm --filter @invoxa/api lint && pnpm --filter @invoxa/web lint",
+    "prisma:generate": "pnpm --filter @invoxa/api prisma:generate",
+    "prisma:migrate": "pnpm --filter @invoxa/api prisma:migrate"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "prisma": "5.22.0",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  }
+}

@@ -1,0 +1,474 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+enum DocumentStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REFUSED
+  CANCELLED
+  PAID
+  OVERDUE
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum FieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+  JSON
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("starter")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companies Company[]
+  users     User[]
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  legalName String?
+  vatNumber String?
+  email     String?
+  phone     String?
+  address   Json?
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customers    Customer[]
+  products     Product[]
+  quotes       Quote[]
+  invoices     Invoice[]
+  templates    DocumentTemplate[]
+  customFields CustomFieldDefinition[]
+  vehicles     GarageVehicle[]
+
+  @@index([tenantId])
+}
+
+model User {
+  id           String     @id @default(cuid())
+  tenantId     String
+  email        String
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roles  UserRole[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users UserRole[]
+
+  @@unique([tenantId, name])
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  tenantId    String
+  companyId   String
+  type        String   @default("company")
+  name        String
+  email       String?
+  phone       String?
+  billingInfo Json     @default("{}")
+  customData  Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contacts Contact[]
+  quotes   Quote[]
+  invoices Invoice[]
+  vehicles GarageVehicle[]
+
+  @@index([tenantId, companyId])
+  @@index([tenantId, name])
+}
+
+model Contact {
+  id         String   @id @default(cuid())
+  tenantId   String
+  customerId String
+  firstName  String
+  lastName   String?
+  email      String?
+  phone      String?
+  position   String?
+  customData Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  tenantId    String
+  companyId   String
+  sku         String?
+  name        String
+  description String?
+  type        String   @default("service")
+  unit        String   @default("unit")
+  unitPrice   Decimal  @db.Decimal(12, 2)
+  taxRate     Decimal  @default(20) @db.Decimal(5, 2)
+  customData  Json     @default("{}")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, companyId])
+}
+
+model Quote {
+  id                 String         @id @default(cuid())
+  tenantId           String
+  companyId          String
+  customerId         String
+  number             String
+  status             DocumentStatus @default(DRAFT)
+  issueDate          DateTime       @default(now())
+  validUntil         DateTime?
+  currency           String         @default("EUR")
+  subtotal           Decimal        @default(0) @db.Decimal(12, 2)
+  taxTotal           Decimal        @default(0) @db.Decimal(12, 2)
+  total              Decimal        @default(0) @db.Decimal(12, 2)
+  notes              String?
+  businessModule     String?
+  businessObjectType String?
+  businessObjectId   String?
+  customData         Json           @default("{}")
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  company  Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lines    QuoteLine[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, companyId])
+  @@index([tenantId, businessModule, businessObjectType, businessObjectId])
+}
+
+model QuoteLine {
+  id          String  @id @default(cuid())
+  tenantId    String
+  quoteId     String
+  label       String
+  description String?
+  quantity    Decimal @default(1) @db.Decimal(12, 2)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  taxRate     Decimal @default(20) @db.Decimal(5, 2)
+  total       Decimal @db.Decimal(12, 2)
+  sourceType  String?
+  sourceId    String?
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, quoteId])
+}
+
+model Invoice {
+  id                 String         @id @default(cuid())
+  tenantId           String
+  companyId          String
+  customerId         String
+  quoteId            String?
+  number             String
+  status             DocumentStatus @default(DRAFT)
+  paymentStatus      PaymentStatus  @default(PENDING)
+  issueDate          DateTime       @default(now())
+  dueDate            DateTime?
+  currency           String         @default("EUR")
+  subtotal           Decimal        @default(0) @db.Decimal(12, 2)
+  taxTotal           Decimal        @default(0) @db.Decimal(12, 2)
+  total              Decimal        @default(0) @db.Decimal(12, 2)
+  amountPaid         Decimal        @default(0) @db.Decimal(12, 2)
+  notes              String?
+  businessModule     String?
+  businessObjectType String?
+  businessObjectId   String?
+  customData         Json           @default("{}")
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lines    InvoiceLine[]
+  payments Payment[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, companyId])
+  @@index([tenantId, businessModule, businessObjectType, businessObjectId])
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  tenantId    String
+  invoiceId   String
+  label       String
+  description String?
+  quantity    Decimal @default(1) @db.Decimal(12, 2)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  taxRate     Decimal @default(20) @db.Decimal(5, 2)
+  total       Decimal @db.Decimal(12, 2)
+  sourceType  String?
+  sourceId    String?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, invoiceId])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  tenantId    String
+  invoiceId   String
+  amount      Decimal       @db.Decimal(12, 2)
+  method      String
+  status      PaymentStatus @default(PAID)
+  reference   String?
+  paidAt      DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, invoiceId])
+}
+
+model DocumentTemplate {
+  id        String   @id @default(cuid())
+  tenantId  String
+  companyId String
+  module    String?
+  type      String
+  name      String
+  schema    Json     @default("{}")
+  html      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, companyId, module, type])
+}
+
+model CustomFieldDefinition {
+  id           String    @id @default(cuid())
+  tenantId     String
+  companyId    String
+  module       String?
+  entityType   String
+  key          String
+  label        String
+  type         FieldType
+  required     Boolean   @default(false)
+  options      Json      @default("[]")
+  defaultValue Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, companyId, module, entityType, key])
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  actorId    String?
+  entityType String
+  entityId   String
+  action     String
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String?
+  title     String
+  body      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId, userId])
+}
+
+model GarageVehicle {
+  id             String   @id @default(cuid())
+  tenantId       String
+  companyId      String
+  customerId     String?
+  plateNumber    String
+  vin            String?
+  brand          String
+  model          String
+  year           Int?
+  mileage        Int?
+  fuelType       String?
+  customData     Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  interventions GarageIntervention[]
+  workOrders    GarageWorkOrder[]
+
+  @@unique([tenantId, plateNumber])
+  @@index([tenantId, companyId])
+}
+
+model GarageIntervention {
+  id          String   @id @default(cuid())
+  tenantId    String
+  vehicleId   String
+  title       String
+  status      String   @default("planned")
+  diagnosis   String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  mileage     Int?
+  notes       String?
+  customData  Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vehicle GarageVehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, vehicleId])
+}
+
+model GarageWorkOrder {
+  id          String   @id @default(cuid())
+  tenantId    String
+  vehicleId   String
+  number      String
+  status      String   @default("open")
+  complaint   String?
+  diagnosis   String?
+  repairPlan  String?
+  openedAt    DateTime @default(now())
+  closedAt    DateTime?
+  customData  Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vehicle GarageVehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  parts   GarageWorkOrderPart[]
+  labor   GarageLaborLine[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, vehicleId])
+}
+
+model GaragePart {
+  id          String   @id @default(cuid())
+  tenantId    String
+  reference   String?
+  name        String
+  unitPrice   Decimal  @db.Decimal(12, 2)
+  stock       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lines GarageWorkOrderPart[]
+
+  @@index([tenantId, name])
+}
+
+model GarageWorkOrderPart {
+  id          String  @id @default(cuid())
+  tenantId    String
+  workOrderId String
+  partId      String?
+  label       String
+  quantity    Decimal @default(1) @db.Decimal(12, 2)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  total       Decimal @db.Decimal(12, 2)
+
+  workOrder GarageWorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  part      GaragePart?     @relation(fields: [partId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, workOrderId])
+}
+
+model GarageLaborLine {
+  id          String  @id @default(cuid())
+  tenantId    String
+  workOrderId String
+  label       String
+  hours       Decimal @db.Decimal(8, 2)
+  hourlyRate  Decimal @db.Decimal(12, 2)
+  total       Decimal @db.Decimal(12, 2)
+
+  workOrder GarageWorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, workOrderId])
+}
