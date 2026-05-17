@@ -12,7 +12,7 @@ async function bootstrap() {
   });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
-  await app.listen(Number(process.env.PORT ?? 3000));
+  await app.listen(Number(process.env.PORT ?? 3000), '0.0.0.0');
 }
 
 bootstrap();
