@@ -47,7 +47,7 @@ import { Select } from '../components/ui/select';
 import { GarageWorkspace } from '../modules/garage/pages/GarageWorkspace';
 
 type Page = 'dashboard' | 'crm' | 'catalog' | 'quotes' | 'invoices' | 'payments' | 'garage' | 'templates' | 'settings' | 'help';
-type ActivityKey = 'garage' | 'artisan' | 'agency' | 'services';
+type ActivityKey = 'garage' | 'services';
 type Customer = {
   id: string;
   name: string;
@@ -114,9 +114,7 @@ const nav: Array<{ key: Page; label: string; icon: typeof LayoutDashboard }> = [
 
 const activities = [
   { key: 'garage', label: 'Garage automobile', description: 'Véhicules, atelier et ordres de réparation', icon: Car },
-  { key: 'artisan', label: 'Artisan chantier', description: 'Chantiers, interventions et matériaux', icon: Wrench },
-  { key: 'agency', label: 'Agence projets', description: 'Projets, temps passé et livrables', icon: CalendarDays },
-  { key: 'services', label: 'Services récurrents', description: 'Contrats, abonnements et prestations', icon: Gauge },
+  { key: 'services', label: 'Commerce / Vente', description: 'Factures et ventes au comptoir', icon: Package },
 ];
 
 const money = (value: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
@@ -186,13 +184,63 @@ const templateVariables = [
   '{{ document.total_ttc }}',
 ];
 
+function LoginPage({ onLogin }: { onLogin: () => void }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (username === 'admin' && password === 'invoxa2026') {
+      onLogin();
+    } else {
+      setError('Identifiants incorrects');
+    }
+  };
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-muted/30">
+      <div className="w-full max-w-sm px-4">
+        <div className="mb-8 text-center">
+          <div className="text-3xl font-black tracking-tight">Invoxa</div>
+          <div className="mt-1 text-sm text-muted-foreground">Connectez-vous pour continuer</div>
+        </div>
+        <Card className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Identifiant</label>
+              <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" autoComplete="username" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mot de passe</label>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+            </div>
+            {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+            <Button type="submit" className="w-full">Se connecter</Button>
+          </form>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('invoxa_auth') === 'ok');
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [query, setQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [toast, setToast] = useState('Bienvenue');
   const [selectedActivity, setSelectedActivity] = useState<ActivityKey>('garage');
+  const [company, setCompany] = useState({
+    name: 'CENTER AUTO PIECE',
+    address: '1 RUE DES ARTS',
+    postalCity: '59280 ARMENTIERES',
+    phone: '03 20 95 31 98',
+    email: 'cap59280@hotmail.com',
+    legal: 'Société à responsabilité limitée (SARL) - Capital de 4 000 € - SIRET: 84238627800019',
+    registration: 'RCS/RM: 842 386 278 R.C.S. Lille - Numéro TVA: FR95842386278',
+    vat: 'FR95842386278',
+    cgv: "Les marchandises livrées demeurent notre propriété jusqu'au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d'intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d'escompte pour paiement anticipé. Rétraction et politique de remboursement : un achat effectué en magasin est réputé ferme et définitif.",
+  });
   const [relationTarget, setRelationTarget] = useState<RelationTarget>(null);
   const [relationHistory, setRelationHistory] = useState<NonNullable<RelationTarget>[]>([]);
 
@@ -256,6 +304,18 @@ export function App() {
   const flash = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast('Enregistré'), 1800);
+  };
+  const companyTemplate = {
+    ...defaultTemplate,
+    companyName: company.name,
+    companyAddress: company.address,
+    companyPostalCity: company.postalCity,
+    companyPhone: company.phone,
+    companyEmail: company.email,
+    companyLegal: company.legal,
+    companyRegistration: company.registration,
+    companyVat: company.vat,
+    cgv: company.cgv,
   };
   const openEntity = (kind: NonNullable<RelationTarget>['kind'], entityId: string) => {
     const next = { kind, id: entityId };
@@ -347,6 +407,7 @@ export function App() {
             templates={templates}
             quotes={quotes}
             query={query}
+            companyOverride={companyTemplate}
             onCreate={(quote) => {
               setQuotes((items) => [{ id: id('q'), ...quote }, ...items]);
               flash('Devis créé');
@@ -370,6 +431,7 @@ export function App() {
             invoices={invoices}
             query={query}
             startCreate
+            companyOverride={companyTemplate}
             onCreate={(invoice) => {
               setInvoices((items) => [{ id: id('f'), ...invoice }, ...items]);
               flash('Facture créée');
@@ -464,16 +526,23 @@ export function App() {
           />
         );
       case 'settings':
-        return <SettingsPage selectedActivity={selectedActivity} onActivityChange={(activity) => {
-          setSelectedActivity(activity);
-          flash('Paramètres enregistrés');
-        }} onSaved={() => flash('Paramètres modifiés')} />;
+        return <SettingsPage
+          company={company}
+          onCompanyChange={(updated) => { setCompany(updated); flash('Paramètres enregistrés'); }}
+          selectedActivity={selectedActivity}
+          onActivityChange={(activity) => { setSelectedActivity(activity); flash('Paramètres enregistrés'); }}
+          onSaved={() => flash('Paramètres enregistrés')}
+        />;
       case 'help':
         return <HelpPage setActivePage={navigateTo} />;
       default:
         return <DashboardPage metrics={metrics} selectedActivity={selectedActivity} invoices={invoices} quotes={quotes} products={products} customers={customers} setActivePage={navigateTo} />;
     }
   };
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={() => { localStorage.setItem('invoxa_auth', 'ok'); setIsLoggedIn(true); }} />;
+  }
 
   if (activePage === 'templates') {
     return renderPage();
@@ -499,24 +568,38 @@ export function App() {
             </button>
           ))}
         </nav>
-        <div className="border-t border-border p-4">
+        <div className="border-t border-border p-4 space-y-3">
           <div className="rounded-2xl bg-black p-4 text-white">
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest">
               <Sparkles size={15} />
-              Assistant métier
+              {company.name}
             </div>
-            <p className="mt-3 text-xs leading-5 text-white/70">Aujourd’hui orienté garage, extensible demain à d’autres activités.</p>
+            <p className="mt-2 text-xs leading-5 text-white/70">Garage automobile · Factures &amp; devis</p>
           </div>
+          <button
+            type="button"
+            onClick={() => { localStorage.removeItem('invoxa_auth'); setIsLoggedIn(false); }}
+            className="w-full flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold text-muted-foreground transition hover:bg-red-50 hover:text-red-600"
+          >
+            <X size={14} /> Déconnexion
+          </button>
         </div>
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center justify-between gap-4 border-b border-border bg-white px-4 xl:px-6">
-          <button type="button" className="hidden items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-foreground shadow-sm ring-1 ring-border lg:flex">
-            <Building2 size={16} />
-            Garage Central - Lyon
-            <ChevronDown size={15} />
-          </button>
+          <div className="relative hidden lg:block">
+            <select
+              value={company.name}
+              onChange={(e) => setCompany({ ...company, name: e.target.value })}
+              className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-foreground shadow-sm ring-1 ring-border appearance-none pr-7"
+            >
+              <option>CENTER AUTO PIECE</option>
+              <option>CAP - Dépôt Nord</option>
+            </select>
+            <Building2 size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground" style={{display:'none'}} />
+            <ChevronDown size={13} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          </div>
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Search size={18} className="text-muted-foreground" />
             <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un client, une facture, un véhicule..." />
@@ -1335,7 +1418,7 @@ function QuotePreview({ form, customers, vehicles, products }: { form: { custome
   );
 }
 
-function QuotesPage({ customers, vehicles, products, templates, quotes, query, onCreate, onUpdate, onOpenEntity, onCreateCustomer, onCreateProduct }: { customers: Customer[]; vehicles: Vehicle[]; products: Product[]; templates: Template[]; quotes: Quote[]; query: string; onCreate: (quote: Omit<Quote, 'id'>) => void; onUpdate: (id: string, patch: Omit<Quote, 'id'>) => void; onOpenEntity: (kind: NonNullable<RelationTarget>['kind'], id: string) => void; onCreateCustomer: (customer: Omit<Customer, 'id'>) => string; onCreateProduct: (product: Omit<Product, 'id'>) => string }) {
+function QuotesPage({ customers, vehicles, products, templates, quotes, query, companyOverride, onCreate, onUpdate, onOpenEntity, onCreateCustomer, onCreateProduct }: { customers: Customer[]; vehicles: Vehicle[]; products: Product[]; templates: Template[]; quotes: Quote[]; query: string; companyOverride?: Partial<typeof defaultTemplate>; onCreate: (quote: Omit<Quote, 'id'>) => void; onUpdate: (id: string, patch: Omit<Quote, 'id'>) => void; onOpenEntity: (kind: NonNullable<RelationTarget>['kind'], id: string) => void; onCreateCustomer: (customer: Omit<Customer, 'id'>) => string; onCreateProduct: (product: Omit<Product, 'id'>) => string }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const emptyForm = { customerId: '', vehicleId: '', lines: [] as LineItem[], status: 'Brouillon', issueDate: todayStr, validUntil: '', notes: '' };
   const [form, setForm] = useState(emptyForm);
@@ -1371,7 +1454,7 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, o
   const countPending = quotes.filter((q) => q.status === 'Envoyé' || q.status === 'Brouillon').length;
   const acceptRate = quotes.length > 0 ? Math.round((countAccepted / quotes.length) * 100) : 0;
   const previewNumber = `DEV-2026-${String(quotes.length + 43).padStart(4, '0')}`;
-  const quoteTemplate = templates.find((template) => template.type === 'Devis') ?? templates[0];
+  const quoteTemplate = { ...(templates.find((template) => template.type === 'Devis') ?? templates[0] ?? defaultTemplate), ...companyOverride };
 
   const statusPill: Record<string, string> = {
     Accepté: 'bg-muted text-foreground border border-border',
@@ -1664,105 +1747,123 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, o
 function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Vehicle[], products: Product[], template: (Omit<Template, 'id' | 'name' | 'activity' | 'status' | 'type'> & { type?: string }) = defaultTemplate) {
   const customer = customers.find((c) => c.id === invoice.customerId);
   const vehicle = vehicles.find((v) => v.id === invoice.vehicleId);
-  const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
+  const fmtN = (n: number) => new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
   const today = new Date().toLocaleDateString('fr-FR');
   const subtotal = invoice.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-  const tax = invoice.lines.reduce((s, l) => s + l.quantity * l.unitPrice * (l.taxRate / 100), 0);
+  const taxByRate: Record<number, number> = {};
+  invoice.lines.forEach((l) => {
+    taxByRate[l.taxRate] = (taxByRate[l.taxRate] ?? 0) + l.quantity * l.unitPrice * (l.taxRate / 100);
+  });
+  const tax = Object.values(taxByRate).reduce((a, b) => a + b, 0);
   const total = subtotal + tax;
   const remaining = Math.max(0, total - invoice.paid);
   const documentLabel = template.type === 'Devis' ? 'Devis' : 'Facture';
   const linesHtml = invoice.lines.map((line) => {
     const product = products.find((p) => p.id === line.productId);
     const lineHT = line.quantity * line.unitPrice;
-    const lineTTC = line.quantity * line.unitPrice * (1 + line.taxRate / 100);
+    const lineTTC = lineHT * (1 + line.taxRate / 100);
     return `<tr>
-      <td>${product?.name ?? 'Article'}</td>
-      <td class="right">${line.taxRate}%</td>
-      <td class="right">${fmt(line.unitPrice)}</td>
-      <td class="right">${line.quantity}</td>
-      <td class="right">${fmt(lineHT)}</td>
-      <td class="right strong">${fmt(lineTTC)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">- ${product?.name ?? 'Article'}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${line.taxRate}%</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtN(line.unitPrice)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${line.quantity}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtN(lineHT)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtN(lineTTC)}</td>
     </tr>`;
   }).join('');
+  const taxRowsHtml = Object.entries(taxByRate).map(([rate, amount]) =>
+    `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>Total TVA ${rate}%</span><span>${fmtN(amount)}</span></div>`
+  ).join('');
+  const paymentsHtml = invoice.paid > 0 ? `
+<div style="margin-top:22px">
+  <div style="font-size:10px;font-weight:700;margin-bottom:6px;color:#4b5563;text-transform:uppercase;letter-spacing:.04em">Versements déjà effectués</div>
+  <table style="width:52%;border-collapse:collapse">
+    <thead><tr style="background:#f3f4f6">
+      <th style="padding:6px 8px;font-size:10px;font-weight:700;text-align:left;color:#4b5563;border-bottom:1px solid #d1d5db">Règlement</th>
+      <th style="padding:6px 8px;font-size:10px;font-weight:700;text-align:right;color:#4b5563;border-bottom:1px solid #d1d5db">Montant</th>
+      <th style="padding:6px 8px;font-size:10px;font-weight:700;text-align:left;color:#4b5563;border-bottom:1px solid #d1d5db">Type</th>
+      <th style="padding:6px 8px;font-size:10px;font-weight:700;text-align:left;color:#4b5563;border-bottom:1px solid #d1d5db">Num</th>
+    </tr></thead>
+    <tbody><tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${today}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtN(invoice.paid)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">Carte bancaire</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb"></td>
+    </tr></tbody>
+  </table>
+</div>` : '';
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"><title>${documentLabel} ${invoice.number}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff;padding:38px;font-size:12px}
-.top{display:flex;justify-content:space-between;gap:40px;margin-bottom:26px}
-.brand{font-size:18px;font-weight:800;letter-spacing:.02em}
-.doc-title{font-size:20px;font-weight:800;text-align:right}
-.muted{color:#4b5563}
-.small{font-size:10px;line-height:1.45}
-.meta{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin:18px 0 28px}
-.box-title{font-weight:700;margin-bottom:8px}
-.identity{line-height:1.55}
-.dates{display:grid;grid-template-columns:140px 1fr;gap:5px 16px;margin-top:18px}
-table{width:100%;border-collapse:collapse;margin:16px 0 18px}
-th{background:#f3f4f6;color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;padding:8px;border-bottom:1px solid #d1d5db;text-align:left}
-td{padding:8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
-.right{text-align:right}
-.strong{font-weight:700}
-.category{font-size:10px;color:#4b5563;margin-top:-8px;margin-bottom:18px}
-.totals{margin-left:auto;width:300px}
-.total-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #e5e7eb}
-.total-row.main{font-size:15px;font-weight:800;border-bottom:2px solid #111827}
-.payments{margin-top:22px;width:58%}
-.cgv{margin-top:28px;font-size:9px;line-height:1.38;color:#374151}
-.legal{margin-top:22px;border-top:1px solid #d1d5db;padding-top:8px;font-size:9px;color:#4b5563;display:flex;justify-content:space-between;gap:18px}
-@media print{body{padding:22px}@page{margin:12mm;size:A4}}
+body{font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff;padding:36px 42px;font-size:11.5px}
+@media print{body{padding:0}@page{margin:14mm 12mm;size:A4}}
 </style>
 </head>
 <body>
-<div class="top">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
   <div>
-    <div class="brand">${template.companyName}</div>
-    <div class="small muted">${template.companyAddress}<br>${template.companyPostalCity}<br>Tél.: ${template.companyPhone}<br>Email: ${template.companyEmail}</div>
+    <div style="font-size:17px;font-weight:900;letter-spacing:.02em;margin-bottom:8px">${template.companyName}</div>
+    <div style="font-size:10.5px;line-height:1.6;color:#374151">${template.companyAddress}<br>${template.companyPostalCity}</div>
+    <div style="font-size:10.5px;line-height:1.6;color:#374151;margin-top:4px">Tél.: ${template.companyPhone}<br>Email: ${template.companyEmail}</div>
   </div>
-  <div>
-    <div class="doc-title">${documentLabel} ${invoice.number}</div>
-    <div class="dates">
-      <span class="muted">Réf. client :</span><strong>${customer?.id.toUpperCase() ?? '-'}</strong>
-      <span class="muted">Date facturation :</span><strong>${invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : today}</strong>
-      <span class="muted">Date échéance :</span><strong>${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : '-'}</strong>
+  <div style="text-align:right">
+    <div style="font-size:19px;font-weight:800">${documentLabel} ${invoice.number}</div>
+    <div style="display:grid;grid-template-columns:130px auto;gap:3px 14px;margin-top:14px;text-align:left;font-size:11px">
+      <span style="color:#6b7280">Réf. client :</span><strong>${customer?.id.toUpperCase() ?? '-'}</strong>
+      <span style="color:#6b7280">Date facturation :</span><strong>${invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : today}</strong>
+      <span style="color:#6b7280">Date échéance :</span><strong>${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : today}</strong>
     </div>
   </div>
 </div>
-<div class="meta">
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:24px">
   <div>
-    <div class="box-title">Émetteur</div>
-    <div class="identity"><strong>${template.companyName}</strong><br>${template.companyAddress}<br>${template.companyPostalCity}<br>${template.companyPhone}<br>${template.companyEmail}</div>
+    <div style="font-weight:700;margin-bottom:6px">Émetteur</div>
+    <div style="line-height:1.6;font-size:11px"><strong>${template.companyName}</strong><br>${template.companyAddress}<br>${template.companyPostalCity}<br><br>Tél.: ${template.companyPhone}<br>Email: ${template.companyEmail}</div>
   </div>
   <div>
-    <div class="box-title">Adressé à</div>
-    <div class="identity"><strong>${customer?.name ?? 'Client'}</strong><br>${customer?.companyName ?? ''}<br>${customer?.billingAddress ?? ''}${customer?.taxNumber ? `<br>TVA : ${customer.taxNumber}` : ''}</div>
-    ${vehicle ? `<div class="small muted" style="margin-top:10px">Véhicule : ${vehicle.plate} - ${vehicle.model}</div>` : ''}
+    <div style="font-weight:700;margin-bottom:6px">Adressé à</div>
+    <div style="line-height:1.6;font-size:11px"><strong>${customer?.name ?? 'client'}</strong>${customer?.companyName ? `<br>${customer.companyName}` : ''}${customer?.billingAddress ? `<br>${customer.billingAddress}` : ''}${customer?.taxNumber ? `<br>TVA : ${customer.taxNumber}` : ''}</div>
+    ${vehicle ? `<div style="margin-top:8px;font-size:10.5px;color:#6b7280">Véhicule : ${vehicle.plate} - ${vehicle.model}</div>` : ''}
   </div>
 </div>
-<table>
-  <thead><tr>
-    <th>Désignation</th>
-    <th style="text-align:right">TVA</th>
-    <th style="text-align:right">P.U. HT</th>
-    <th style="text-align:right">Qté</th>
-    <th style="text-align:right">Total HT</th>
-    <th style="text-align:right">Total TTC</th>
+
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;font-size:10.5px;color:#4b5563">
+  <span>${template.introText}</span>
+  <span>Montants exprimés en Euros</span>
+</div>
+
+<table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+  <thead><tr style="background:#f3f4f6">
+    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:left">Désignation</th>
+    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">TVA</th>
+    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">P.U. HT</th>
+    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">Qté</th>
+    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">Total HT</th>
+    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">Total TTC</th>
   </tr></thead>
   <tbody>${linesHtml}</tbody>
 </table>
-<div class="category">${template.introText} · Montants exprimés en Euros</div>
-<div class="totals">
-  <div class="total-row"><span>Total HT</span><strong>${fmt(subtotal)}</strong></div>
-  <div class="total-row"><span>Total TVA 20%</span><strong>${fmt(tax)}</strong></div>
-  <div class="total-row main"><span>Total TTC</span><span>${fmt(total)}</span></div>
-  <div class="total-row"><span>Payé</span><strong>${fmt(invoice.paid)}</strong></div>
-  <div class="total-row"><span>Reste à payer</span><strong>${fmt(remaining)}</strong></div>
+
+<div style="display:flex;gap:32px;justify-content:flex-end">
+  <div style="width:260px">
+    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>Total HT</span><span>${fmtN(subtotal)}</span></div>
+    ${taxRowsHtml}
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:2px solid #111827;font-size:13px;font-weight:800"><span>Total TTC</span><span>${fmtN(total)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>Payé</span><span>${fmtN(invoice.paid)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Reste à payer</span><span>${fmtN(remaining)}</span></div>
+  </div>
 </div>
-${template.includePayment && invoice.paid > 0 ? `<table class="payments"><thead><tr><th>Règlement</th><th class="right">Montant</th><th>Type</th><th>Num</th></tr></thead><tbody><tr><td>${today}</td><td class="right">${fmt(invoice.paid)}</td><td>Carte bancaire</td><td></td></tr></tbody></table>` : ''}
-${invoice.notes ? `<div class="small" style="margin-top:18px"><strong>Notes :</strong> ${invoice.notes}</div>` : ''}
-<div class="cgv"><strong>CGV :</strong> ${template.cgv}</div>
-<div class="legal"><span>${template.companyLegal}<br>${template.companyRegistration}</span><span>1 / 1</span></div>
+
+${paymentsHtml}
+${invoice.notes ? `<div style="margin-top:18px;font-size:10.5px"><strong>Notes :</strong> ${invoice.notes}</div>` : ''}
+<div style="margin-top:26px;font-size:9px;line-height:1.45;color:#374151"><strong>CGV :</strong> ${template.cgv}</div>
+<div style="margin-top:20px;border-top:1px solid #d1d5db;padding-top:8px;font-size:9px;color:#6b7280;display:flex;justify-content:space-between">
+  <span>${template.companyLegal}<br>${template.companyRegistration}</span>
+  <span>1/1</span>
+</div>
 </body></html>`;
   const win = window.open('', '_blank', 'width=860,height=1100');
   if (win) { win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 500); }
@@ -1980,7 +2081,7 @@ function Pagination({ total, page, perPage, onChange }: { total: number; page: n
 }
 
 
-function InvoicesPage({ customers, vehicles, products, templates, invoices, query, startCreate = false, onCreate, onUpdate, onOpenEntity, onCreateCustomer, onCreateProduct }: { customers: Customer[]; vehicles: Vehicle[]; products: Product[]; templates: Template[]; invoices: Invoice[]; query: string; startCreate?: boolean; onCreate: (invoice: Omit<Invoice, 'id'>) => void; onUpdate: (id: string, patch: Omit<Invoice, 'id'>) => void; onOpenEntity: (kind: NonNullable<RelationTarget>['kind'], id: string) => void; onCreateCustomer: (customer: Omit<Customer, 'id'>) => string; onCreateProduct: (product: Omit<Product, 'id'>) => string }) {
+function InvoicesPage({ customers, vehicles, products, templates, invoices, query, startCreate = false, companyOverride, onCreate, onUpdate, onOpenEntity, onCreateCustomer, onCreateProduct }: { customers: Customer[]; vehicles: Vehicle[]; products: Product[]; templates: Template[]; invoices: Invoice[]; query: string; startCreate?: boolean; companyOverride?: Partial<typeof defaultTemplate>; onCreate: (invoice: Omit<Invoice, 'id'>) => void; onUpdate: (id: string, patch: Omit<Invoice, 'id'>) => void; onOpenEntity: (kind: NonNullable<RelationTarget>['kind'], id: string) => void; onCreateCustomer: (customer: Omit<Customer, 'id'>) => string; onCreateProduct: (product: Omit<Product, 'id'>) => string }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const emptyForm = { number: '', customerId: '', vehicleId: '', paid: 0, status: 'À payer', lines: [] as LineItem[], issueDate: todayStr, dueDate: '', notes: '' };
   const [form, setForm] = useState(emptyForm);
@@ -2011,7 +2112,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
   const totalFacture = invoices.reduce((s, inv) => s + documentTotal(products, inv.lines), 0);
   const totalEncaisse = invoices.reduce((s, inv) => s + inv.paid, 0);
   const countOpen = invoices.filter((inv) => inv.status !== 'Payée').length;
-  const invoiceTemplate = templates.find((template) => template.type === 'Facture') ?? templates[0];
+  const invoiceTemplate = { ...(templates.find((template) => template.type === 'Facture') ?? templates[0] ?? defaultTemplate), ...companyOverride };
 
   const statusPill: Record<string, string> = {
     Payée: 'bg-muted text-foreground border border-border',
@@ -2547,17 +2648,59 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
   );
 }
 
-function SettingsPage({ selectedActivity, onActivityChange, onSaved }: { selectedActivity: ActivityKey; onActivityChange: (activity: ActivityKey) => void; onSaved: () => void }) {
-  const [company, setCompany] = useState({ name: 'Invoxa Démo', email: 'contact@invoxa.example', vat: 'FR 12 345678901' });
+function SettingsPage({ company, onCompanyChange, selectedActivity, onActivityChange, onSaved }: { company: { name: string; address: string; postalCity: string; phone: string; email: string; legal: string; registration: string; vat: string; cgv: string }; onCompanyChange: (c: typeof company) => void; selectedActivity: ActivityKey; onActivityChange: (activity: ActivityKey) => void; onSaved: () => void }) {
+  const set = (field: string, value: string) => onCompanyChange({ ...company, [field]: value });
   return (
-    <PageShell title="Paramètres entreprise" description="Configuration entreprise, utilisateurs, rôles, activités et préférences documentaires.">
-      <div className="grid grid-cols-1 gap-5 2xl:grid-cols-3">
-        <Card className="p-5">
-          <SectionTitle title="Entreprise" action="Enregistrer" onAction={onSaved} />
+    <PageShell title="Paramètres entreprise" description="Configuration entreprise, informations légales et préférences documentaires.">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 2xl:grid-cols-3">
+        <Card className="p-5 xl:col-span-2 2xl:col-span-1">
+          <SectionTitle title="Informations entreprise" action="Enregistrer" onAction={onSaved} />
           <div className="space-y-3">
-            <Input value={company.name} onChange={(event) => setCompany({ ...company, name: event.target.value })} />
-            <Input value={company.email} onChange={(event) => setCompany({ ...company, email: event.target.value })} />
-            <Input value={company.vat} onChange={(event) => setCompany({ ...company, vat: event.target.value })} />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Raison sociale</label>
+              <Input value={company.name} onChange={(e) => set('name', e.target.value)} placeholder="CENTER AUTO PIECE" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Adresse</label>
+                <Input value={company.address} onChange={(e) => set('address', e.target.value)} placeholder="1 RUE DES ARTS" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">CP / Ville</label>
+                <Input value={company.postalCity} onChange={(e) => set('postalCity', e.target.value)} placeholder="59280 ARMENTIERES" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Téléphone</label>
+                <Input value={company.phone} onChange={(e) => set('phone', e.target.value)} placeholder="03 20 95 31 98" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Email</label>
+                <Input type="email" value={company.email} onChange={(e) => set('email', e.target.value)} placeholder="contact@exemple.fr" />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Mentions légales (SARL, capital, SIRET…)</label>
+              <Input value={company.legal} onChange={(e) => set('legal', e.target.value)} placeholder="SARL - Capital 4 000 € - SIRET : 000 000 000 00000" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">RCS / TVA</label>
+              <Input value={company.registration} onChange={(e) => set('registration', e.target.value)} placeholder="RCS Lille - N° TVA : FR00000000000" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">N° TVA intracommunautaire</label>
+              <Input value={company.vat} onChange={(e) => set('vat', e.target.value)} placeholder="FR00000000000" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">CGV (pied de page des factures)</label>
+              <textarea
+                className="min-h-[80px] w-full rounded-md border border-input bg-white p-3 text-xs outline-none transition focus:ring-2 focus:ring-ring"
+                value={company.cgv}
+                onChange={(e) => set('cgv', e.target.value)}
+                placeholder="Conditions générales de vente..."
+              />
+            </div>
           </div>
         </Card>
         <Card className="p-5">
