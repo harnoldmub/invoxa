@@ -70,21 +70,46 @@ type LineItem = { productId: string; quantity: number; unitPrice: number; taxRat
 type Quote = { id: string; number: string; customerId: string; vehicleId: string; status: string; lines: LineItem[]; issueDate?: string; validUntil?: string; notes?: string };
 type Invoice = { id: string; number: string; customerId: string; vehicleId: string; paid: number; status: string; lines: LineItem[]; issueDate?: string; dueDate?: string; notes?: string };
 type Payment = { id: string; invoiceId: string; amount: number; method: string; date: string };
-type Template = { id: string; name: string; type: string; activity: string; status: string; title: string; primaryColor: string; accentColor: string; introText: string; footerText: string; paymentText: string; paperSize: string; orientation: string; marginTop: number; marginBottom: number; marginLeft: number; marginRight: number; includePayment: boolean };
+type Template = {
+  id: string;
+  name: string;
+  type: string;
+  activity: string;
+  status: string;
+  title: string;
+  primaryColor: string;
+  accentColor: string;
+  introText: string;
+  footerText: string;
+  paymentText: string;
+  paperSize: string;
+  orientation: string;
+  marginTop: number;
+  marginBottom: number;
+  marginLeft: number;
+  marginRight: number;
+  includePayment: boolean;
+  companyName: string;
+  companyAddress: string;
+  companyPostalCity: string;
+  companyPhone: string;
+  companyEmail: string;
+  companyLegal: string;
+  companyRegistration: string;
+  companyVat: string;
+  cgv: string;
+};
 type CustomField = { id: string; entity: string; label: string; type: string; activity: string };
 type RelationTarget = { kind: 'customer' | 'product' | 'quote' | 'invoice' | 'vehicle' | 'payment'; id: string } | null;
 
 const nav: Array<{ key: Page; label: string; icon: typeof LayoutDashboard }> = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'invoices', label: 'Nouvelle facture', icon: FileText },
   { key: 'crm', label: 'Clients', icon: Users },
-  { key: 'catalog', label: 'Catalogue', icon: Package },
-  { key: 'quotes', label: 'Devis', icon: ClipboardList },
-  { key: 'invoices', label: 'Factures', icon: FileText },
-  { key: 'payments', label: 'Paiements', icon: CreditCard },
   { key: 'garage', label: 'Garage', icon: Car },
-  { key: 'templates', label: 'Modèles', icon: Sparkles },
-  { key: 'settings', label: 'Paramètres', icon: Settings },
-  { key: 'help', label: 'Aide', icon: Bell },
+  { key: 'catalog', label: 'Catalogue', icon: Package },
+  { key: 'payments', label: 'Historique', icon: Clock },
+  { key: 'templates', label: 'Modèle facture', icon: Sparkles },
 ];
 
 const activities = [
@@ -118,12 +143,12 @@ const lineFromProduct = (products: Product[], productId: string, quantity = 1): 
   return { productId, quantity, unitPrice: product?.unitPrice ?? 0, taxRate: product?.taxRate ?? 20 };
 };
 const defaultTemplate = {
-  title: 'Devis professionnel',
-  primaryColor: '#1f6285',
-  accentColor: '#e7f4f1',
-  introText: 'Merci pour votre confiance. Vous trouverez ci-dessous le détail de notre proposition.',
-  footerText: 'Document généré par Invoxa',
-  paymentText: 'Conditions de paiement : acompte à validation, solde à réception.',
+  title: 'Facture',
+  primaryColor: '#111827',
+  accentColor: '#f3f3f3',
+  introText: 'Catégorie d’opérations : Livraison de marchandises',
+  footerText: 'Powered by Invoxa',
+  paymentText: 'Règlement à réception.',
   paperSize: 'A4',
   orientation: 'Portrait',
   marginTop: 0.7,
@@ -131,6 +156,15 @@ const defaultTemplate = {
   marginLeft: 0.55,
   marginRight: 0.45,
   includePayment: true,
+  companyName: 'CENTER AUTO PIECE',
+  companyAddress: '1 RUE DES ARTS',
+  companyPostalCity: '59280 ARMENTIERES',
+  companyPhone: '03 20 95 31 98',
+  companyEmail: 'cap59280@hotmail.com',
+  companyLegal: 'Société à responsabilité limitée (SARL) - Capital de 4 000 € - SIRET: 84238627800019',
+  companyRegistration: 'RCS/RM: 842 386 278 R.C.S. Lille - Numéro TVA: FR95842386278',
+  companyVat: 'FR95842386278',
+  cgv: 'Les marchandises livrées demeurent notre propriété jusqu’au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d’intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d’escompte pour paiement anticipé. Rétraction et politique de remboursement : un achat effectué en magasin est réputé ferme et définitif.',
 };
 
 const templatePreviewData = {
@@ -190,8 +224,8 @@ export function App() {
     { id: 'pay2', invoiceId: 'f2', amount: 250, method: 'Virement', date: '2026-05-13' },
   ]);
   const [templates, setTemplates] = useState<Template[]>([
-    { id: 't1', name: 'Dizayna', type: 'Facture', activity: 'Général', status: 'Par défaut', ...defaultTemplate, title: 'Facture moderne', primaryColor: '#ef1237', accentColor: '#fff1f3' },
-    { id: 't2', name: 'Atelier premium', type: 'Devis', activity: 'Garage', status: 'Actif', ...defaultTemplate, title: 'Devis atelier', primaryColor: '#1f6285', accentColor: '#e7f4f1' },
+    { id: 't1', name: 'Garage Central - Lyon', type: 'Facture', activity: 'Garage', status: 'Par défaut', ...defaultTemplate },
+    { id: 't2', name: 'Devis garage simple', type: 'Devis', activity: 'Garage', status: 'Actif', ...defaultTemplate, title: 'Devis', introText: 'Proposition de réparation et entretien véhicule.' },
   ]);
   const [fields, setFields] = useState<CustomField[]>([
     { id: 'cf1', entity: 'Véhicule', label: 'Garantie constructeur', type: 'Date', activity: 'Garage' },
@@ -212,12 +246,10 @@ export function App() {
     const invoiced = invoices.reduce((sum, invoice) => sum + documentTotal(products, invoice.lines), 0);
     const collected = invoices.reduce((sum, invoice) => sum + invoice.paid, 0);
     const unpaid = invoiced - collected;
-    const pendingQuotes = quotes.filter((q) => q.status === 'Envoyé' || q.status === 'Brouillon').length;
     return [
-      { label: 'Facturé', value: money(invoiced), trend: `${invoices.length} facture${invoices.length !== 1 ? 's' : ''}`, icon: FileText },
-      { label: 'Encaissé', value: money(collected), trend: invoiced > 0 ? `${Math.round((collected / invoiced) * 100)}% du total` : '—', icon: CreditCard },
-      { label: 'À encaisser', value: money(unpaid), trend: unpaid > 0 ? 'En attente de règlement' : 'Tout encaissé ✓', icon: ClipboardList },
-      { label: 'Devis en cours', value: String(pendingQuotes), trend: `sur ${quotes.length} devis au total`, icon: Car },
+      { label: "Chiffre d'affaires global", value: money(invoiced), trend: `${invoices.length} facture${invoices.length !== 1 ? 's' : ''}`, icon: FileText },
+      { label: 'Factures encaissées', value: money(collected), trend: invoiced > 0 ? `${Math.round((collected / invoiced) * 100)}% du total réglé` : '—', icon: CreditCard },
+      { label: 'En attente / impayés', value: money(unpaid), trend: unpaid > 0 ? 'Relances à prévoir' : 'Tout encaissé', icon: Clock },
     ];
   }, [invoices, products, quotes, vehicles]);
 
@@ -337,6 +369,7 @@ export function App() {
             templates={templates}
             invoices={invoices}
             query={query}
+            startCreate
             onCreate={(invoice) => {
               setInvoices((items) => [{ id: id('f'), ...invoice }, ...items]);
               flash('Facture créée');
@@ -400,9 +433,8 @@ export function App() {
               flash('Devis garage créé');
             }}
             onCreateGarageInvoice={(vehicle) => {
-              setInvoices((items) => [{ id: id('f'), number: `FAC-2026-${String(items.length + 100).padStart(4, '0')}`, customerId: vehicle.customerId, vehicleId: vehicle.id, paid: 0, status: 'À payer', issueDate: new Date().toISOString().slice(0, 10), dueDate: '', notes: `Facture atelier pour ${vehicle.plate} - ${vehicle.model}`, lines: [lineFromProduct(products, products[0]?.id ?? '', 1)] }, ...items]);
               navigateTo('invoices');
-              flash('Facture garage créée');
+              flash('Saisissez le numéro de facture avant validation');
             }}
             onOpenEntity={openEntity}
           />
@@ -450,22 +482,16 @@ export function App() {
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-white xl:w-64">
-        <div className="flex h-16 items-center gap-3 border-b border-border px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Building2 size={19} />
-          </div>
-          <div>
-            <div className="text-sm font-semibold">Invoxa</div>
-            <div className="text-xs text-muted-foreground">Gestion devis & factures</div>
-          </div>
+        <div className="flex h-20 items-center border-b border-border px-5">
+          <div className="text-2xl font-black tracking-tight">Invoxa</div>
         </div>
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-2 px-4 py-8">
           {nav.map((item) => (
             <button
               key={item.key}
               onClick={() => navigateTo(item.key)}
-              className={`flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm transition ${
-                activePage === item.key ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              className={`flex h-12 w-full items-center gap-3 rounded-xl px-4 text-sm font-bold transition ${
+                activePage === item.key ? 'border border-black bg-white text-black shadow-sm' : 'text-muted-foreground hover:bg-white hover:text-black'
               }`}
             >
               <item.icon size={17} />
@@ -474,15 +500,23 @@ export function App() {
           ))}
         </nav>
         <div className="border-t border-border p-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck size={15} className="text-emerald-700" />
-            Données sauvegardées
+          <div className="rounded-2xl bg-black p-4 text-white">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest">
+              <Sparkles size={15} />
+              Assistant métier
+            </div>
+            <p className="mt-3 text-xs leading-5 text-white/70">Aujourd’hui orienté garage, extensible demain à d’autres activités.</p>
           </div>
         </div>
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center justify-between gap-4 border-b border-border bg-white px-4 xl:px-6">
+          <button type="button" className="hidden items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-foreground shadow-sm ring-1 ring-border lg:flex">
+            <Building2 size={16} />
+            Garage Central - Lyon
+            <ChevronDown size={15} />
+          </button>
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Search size={18} className="text-muted-foreground" />
             <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un client, une facture, un véhicule..." />
@@ -491,9 +525,9 @@ export function App() {
             <Button variant="outline" size="icon" title="Notifications" onClick={() => setShowNotifications((open) => !open)}>
               <Bell size={17} />
             </Button>
-            <Button onClick={() => navigateTo('quotes')}>
+            <Button onClick={() => navigateTo('invoices')}>
               <Plus size={17} />
-              Nouveau devis
+              Nouvelle facture
             </Button>
             {showNotifications && (
               <Card className="absolute right-0 top-12 z-10 w-80 p-4">
@@ -564,7 +598,6 @@ function DashboardPage({
         <h1 className="text-2xl font-semibold">Tableau de bord</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setActivePage('invoices')}><FileText size={15} /> Nouvelle facture</Button>
-          <Button onClick={() => setActivePage('quotes')}><Plus size={15} /> Nouveau devis</Button>
         </div>
       </div>
 
@@ -586,41 +619,41 @@ function DashboardPage({
           {invoices.filter((inv) => inv.status !== 'Payée').length > 0 && (
             <Card className="border-amber-200 bg-amber-50 p-4">
               <div className="mb-3 flex items-center gap-2">
-                <AlertCircle size={16} className="text-amber-600" />
-                <span className="font-semibold text-amber-900">
+                <AlertCircle size={16} className="text-amber-700" />
+                <span className="font-semibold text-amber-950">
                   {invoices.filter((inv) => inv.status !== 'Payée').length} facture{invoices.filter((inv) => inv.status !== 'Payée').length !== 1 ? 's' : ''} à encaisser
                 </span>
               </div>
               <div className="space-y-2">
                 {invoices.filter((inv) => inv.status !== 'Payée').slice(0, 3).map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-amber-900">{inv.number}</span>
-                    <span className="text-amber-700">{customerName(customers, inv.customerId)}</span>
-                    <span className="font-semibold text-amber-900">{money(documentTotal(products, inv.lines) - inv.paid)}</span>
+                    <span className="font-medium text-amber-950">{inv.number}</span>
+                    <span className="text-amber-800">{customerName(customers, inv.customerId)}</span>
+                    <span className="font-semibold text-amber-950">{money(documentTotal(products, inv.lines) - inv.paid)}</span>
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={() => setActivePage('invoices')} className="mt-3 text-xs font-medium text-amber-700 hover:underline">Voir les factures →</button>
+              <button type="button" onClick={() => setActivePage('invoices')} className="mt-3 text-xs font-bold text-amber-900 hover:underline">Voir les factures →</button>
             </Card>
           )}
           {quotes.filter((q) => q.status === 'Envoyé').length > 0 && (
             <Card className="border-blue-200 bg-blue-50 p-4">
               <div className="mb-3 flex items-center gap-2">
-                <Clock size={16} className="text-blue-600" />
-                <span className="font-semibold text-blue-900">
+                <Clock size={16} className="text-blue-700" />
+                <span className="font-semibold text-blue-950">
                   {quotes.filter((q) => q.status === 'Envoyé').length} devis envoyé{quotes.filter((q) => q.status === 'Envoyé').length !== 1 ? 's' : ''} sans réponse
                 </span>
               </div>
               <div className="space-y-2">
                 {quotes.filter((q) => q.status === 'Envoyé').slice(0, 3).map((q) => (
                   <div key={q.id} className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-blue-900">{q.number}</span>
-                    <span className="text-blue-700">{customerName(customers, q.customerId)}</span>
-                    <span className="font-semibold text-blue-900">{money(documentTotal(products, q.lines))}</span>
+                    <span className="font-medium text-blue-950">{q.number}</span>
+                    <span className="text-blue-800">{customerName(customers, q.customerId)}</span>
+                    <span className="font-semibold text-blue-950">{money(documentTotal(products, q.lines))}</span>
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={() => setActivePage('quotes')} className="mt-3 text-xs font-medium text-blue-700 hover:underline">Voir les devis →</button>
+              <button type="button" onClick={() => setActivePage('quotes')} className="mt-3 text-xs font-bold text-blue-900 hover:underline">Voir les devis →</button>
             </Card>
           )}
         </section>
@@ -1231,7 +1264,7 @@ function QuotePreview({ form, customers, vehicles, products }: { form: { custome
   const fg = statusColor[form.status] ?? '#475569';
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-white shadow-sm text-sm">
-      <div style={{ background: '#1f6285' }} className="px-6 py-5 flex items-start justify-between">
+      <div style={{ background: '#111111' }} className="px-6 py-5 flex items-start justify-between">
         <div>
           <div className="text-lg font-bold text-white tracking-tight">Invoxa</div>
           <div className="text-xs text-white/60 mt-0.5">Garage professionnel</div>
@@ -1292,7 +1325,7 @@ function QuotePreview({ form, customers, vehicles, products }: { form: { custome
           <div className="w-56 space-y-1.5">
             <div className="flex justify-between text-muted-foreground"><span>Sous-total HT</span><span>{fmt(sub)}</span></div>
             <div className="flex justify-between text-muted-foreground"><span>TVA</span><span>{fmt(taxAmt)}</span></div>
-            <div className="flex justify-between font-bold text-base border-t border-border pt-2 mt-2"><span>Total TTC</span><span style={{ color: '#1f6285' }}>{fmt(total)}</span></div>
+            <div className="flex justify-between font-bold text-base border-t border-border pt-2 mt-2"><span>Total TTC</span><span style={{ color: '#111111' }}>{fmt(total)}</span></div>
           </div>
         </div>
         {form.notes && <div className="mt-4 text-xs text-muted-foreground border-t border-border pt-3 italic">{form.notes}</div>}
@@ -1341,9 +1374,9 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, o
   const quoteTemplate = templates.find((template) => template.type === 'Devis') ?? templates[0];
 
   const statusPill: Record<string, string> = {
-    Accepté: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    Refusé: 'bg-red-50 text-red-700 border border-red-200',
-    Envoyé: 'bg-blue-50 text-blue-700 border border-blue-200',
+    Accepté: 'bg-muted text-foreground border border-border',
+    Refusé: 'bg-muted text-foreground border border-border',
+    Envoyé: 'bg-muted text-foreground border border-border',
     Brouillon: 'bg-gray-100 text-gray-600 border border-gray-200',
   };
 
@@ -1628,7 +1661,7 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, o
 
 
 
-function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Vehicle[], products: Product[], template: (typeof defaultTemplate & { type?: string }) = defaultTemplate) {
+function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Vehicle[], products: Product[], template: (Omit<Template, 'id' | 'name' | 'activity' | 'status' | 'type'> & { type?: string }) = defaultTemplate) {
   const customer = customers.find((c) => c.id === invoice.customerId);
   const vehicle = vehicles.find((v) => v.id === invoice.vehicleId);
   const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
@@ -1637,20 +1670,18 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
   const tax = invoice.lines.reduce((s, l) => s + l.quantity * l.unitPrice * (l.taxRate / 100), 0);
   const total = subtotal + tax;
   const remaining = Math.max(0, total - invoice.paid);
-  const primaryColor = template.primaryColor;
-  const accentColor = template.accentColor;
-  const statusBg = invoice.status === 'Payée' ? '#d1fae5' : invoice.status === 'Acompte' ? '#fef3c7' : '#fee2e2';
-  const statusColor = invoice.status === 'Payée' ? '#065f46' : invoice.status === 'Acompte' ? '#92400e' : '#991b1b';
   const documentLabel = template.type === 'Devis' ? 'Devis' : 'Facture';
   const linesHtml = invoice.lines.map((line) => {
     const product = products.find((p) => p.id === line.productId);
+    const lineHT = line.quantity * line.unitPrice;
     const lineTTC = line.quantity * line.unitPrice * (1 + line.taxRate / 100);
     return `<tr>
-      <td style="padding:12px 16px;border-bottom:1px solid #f0f4f8;">${product?.name ?? 'Article'}</td>
-      <td style="padding:12px 16px;border-bottom:1px solid #f0f4f8;text-align:center;">${line.quantity} ${product?.unit ?? ''}</td>
-      <td style="padding:12px 16px;border-bottom:1px solid #f0f4f8;text-align:right;">${fmt(line.unitPrice)}</td>
-      <td style="padding:12px 16px;border-bottom:1px solid #f0f4f8;text-align:right;">${line.taxRate}%</td>
-      <td style="padding:12px 16px;border-bottom:1px solid #f0f4f8;text-align:right;font-weight:600;">${fmt(lineTTC)}</td>
+      <td>${product?.name ?? 'Article'}</td>
+      <td class="right">${line.taxRate}%</td>
+      <td class="right">${fmt(line.unitPrice)}</td>
+      <td class="right">${line.quantity}</td>
+      <td class="right">${fmt(lineHT)}</td>
+      <td class="right strong">${fmt(lineTTC)}</td>
     </tr>`;
   }).join('');
   const html = `<!DOCTYPE html>
@@ -1658,86 +1689,80 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
 <head><meta charset="UTF-8"><title>${documentLabel} ${invoice.number}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a202c;background:#fff;padding:48px}
-.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;padding-bottom:24px;border-bottom:3px solid ${primaryColor}}
-.logo{font-size:22px;font-weight:800;color:${primaryColor};letter-spacing:-0.5px}
-.logo-sub{font-size:12px;color:#64748b;margin-top:2px}
-.inv-label{font-size:28px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:2px}
-.inv-num{font-size:13px;color:#64748b;margin-top:4px}
-.badge{display:inline-flex;align-items:center;padding:3px 14px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:8px;background:${statusBg};color:${statusColor}}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:28px}
-.lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#94a3b8;margin-bottom:6px}
-.val{font-size:13px;color:#334155;line-height:1.5}
-.val.big{font-size:15px;font-weight:700;color:#0f172a}
-.meta-box{display:grid;grid-template-columns:repeat(4,1fr);background:#f8fafc;border-radius:10px;overflow:hidden;margin-bottom:32px;border:1px solid #e2e8f0}
-.meta-cell{padding:14px 18px;border-right:1px solid #e2e8f0}
-.meta-cell:last-child{border-right:none}
-table{width:100%;border-collapse:collapse;margin-bottom:24px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
-thead tr{background:${primaryColor};color:#fff}
-thead th{padding:11px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;text-align:left}
-thead th:nth-child(n+2){text-align:right}
-thead th:nth-child(2){text-align:center}
-.totals-wrap{display:flex;justify-content:flex-end;margin-bottom:32px}
-.totals{width:300px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
-.tr{display:flex;justify-content:space-between;padding:10px 16px;font-size:13px;border-bottom:1px solid #f0f4f8}
-.tr.grand{font-size:16px;font-weight:800;color:${primaryColor};background:${accentColor};border-bottom:none;padding:14px 16px}
-.tr.remaining{background:#fff8f1;border-bottom:none;color:#d97706;font-weight:600}
-.notes{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:32px}
-.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:11px;color:#94a3b8}
-@media print{body{padding:24px}@page{margin:12mm;size:A4}}
+body{font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff;padding:38px;font-size:12px}
+.top{display:flex;justify-content:space-between;gap:40px;margin-bottom:26px}
+.brand{font-size:18px;font-weight:800;letter-spacing:.02em}
+.doc-title{font-size:20px;font-weight:800;text-align:right}
+.muted{color:#4b5563}
+.small{font-size:10px;line-height:1.45}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin:18px 0 28px}
+.box-title{font-weight:700;margin-bottom:8px}
+.identity{line-height:1.55}
+.dates{display:grid;grid-template-columns:140px 1fr;gap:5px 16px;margin-top:18px}
+table{width:100%;border-collapse:collapse;margin:16px 0 18px}
+th{background:#f3f4f6;color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;padding:8px;border-bottom:1px solid #d1d5db;text-align:left}
+td{padding:8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+.right{text-align:right}
+.strong{font-weight:700}
+.category{font-size:10px;color:#4b5563;margin-top:-8px;margin-bottom:18px}
+.totals{margin-left:auto;width:300px}
+.total-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #e5e7eb}
+.total-row.main{font-size:15px;font-weight:800;border-bottom:2px solid #111827}
+.payments{margin-top:22px;width:58%}
+.cgv{margin-top:28px;font-size:9px;line-height:1.38;color:#374151}
+.legal{margin-top:22px;border-top:1px solid #d1d5db;padding-top:8px;font-size:9px;color:#4b5563;display:flex;justify-content:space-between;gap:18px}
+@media print{body{padding:22px}@page{margin:12mm;size:A4}}
 </style>
 </head>
 <body>
-<div class="header">
-  <div><div class="logo">Invoxa</div><div class="logo-sub">Gestion devis &amp; factures</div></div>
-  <div style="text-align:right">
-    <div class="inv-label">${documentLabel}</div>
-    <div class="inv-num">${invoice.number}</div>
-    <div class="badge">${invoice.status}</div>
-  </div>
-</div>
-<div class="grid2">
+<div class="top">
   <div>
-    <div class="lbl">Emetteur</div>
-    <div class="val big">Invoxa Demo</div>
-    <div class="val">contact@invoxa.example</div>
+    <div class="brand">${template.companyName}</div>
+    <div class="small muted">${template.companyAddress}<br>${template.companyPostalCity}<br>Tél.: ${template.companyPhone}<br>Email: ${template.companyEmail}</div>
   </div>
   <div>
-    <div class="lbl">Facturer a</div>
-    <div class="val big">${customer?.name ?? '&mdash;'}</div>
-    <div class="val">${customer?.companyName ?? ''}</div>
-    <div class="val">${customer?.billingAddress ?? ''}</div>
-    ${customer?.taxNumber ? `<div class="val" style="font-size:11px;color:#94a3b8;margin-top:4px">TVA : ${customer.taxNumber}</div>` : ''}
+    <div class="doc-title">${documentLabel} ${invoice.number}</div>
+    <div class="dates">
+      <span class="muted">Réf. client :</span><strong>${customer?.id.toUpperCase() ?? '-'}</strong>
+      <span class="muted">Date facturation :</span><strong>${invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : today}</strong>
+      <span class="muted">Date échéance :</span><strong>${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : '-'}</strong>
+    </div>
   </div>
 </div>
-<div class="meta-box">
-  <div class="meta-cell"><div class="lbl">Date d'emission</div><div class="val">${invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : today}</div></div>
-  <div class="meta-cell"><div class="lbl">Date d'echeance</div><div class="val">${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : '&mdash;'}</div></div>
-  <div class="meta-cell"><div class="lbl">Dossier</div><div class="val">${vehicle ? `${vehicle.plate} &mdash; ${vehicle.model}` : '&mdash;'}</div></div>
-  <div class="meta-cell"><div class="lbl">Conditions</div><div class="val">${customer?.paymentTerms ?? 'Comptant'}</div></div>
+<div class="meta">
+  <div>
+    <div class="box-title">Émetteur</div>
+    <div class="identity"><strong>${template.companyName}</strong><br>${template.companyAddress}<br>${template.companyPostalCity}<br>${template.companyPhone}<br>${template.companyEmail}</div>
+  </div>
+  <div>
+    <div class="box-title">Adressé à</div>
+    <div class="identity"><strong>${customer?.name ?? 'Client'}</strong><br>${customer?.companyName ?? ''}<br>${customer?.billingAddress ?? ''}${customer?.taxNumber ? `<br>TVA : ${customer.taxNumber}` : ''}</div>
+    ${vehicle ? `<div class="small muted" style="margin-top:10px">Véhicule : ${vehicle.plate} - ${vehicle.model}</div>` : ''}
+  </div>
 </div>
 <table>
   <thead><tr>
-    <th style="text-align:left">Designation</th>
-    <th style="text-align:center">Qte</th>
-    <th style="text-align:right">Prix HT</th>
+    <th>Désignation</th>
     <th style="text-align:right">TVA</th>
+    <th style="text-align:right">P.U. HT</th>
+    <th style="text-align:right">Qté</th>
+    <th style="text-align:right">Total HT</th>
     <th style="text-align:right">Total TTC</th>
   </tr></thead>
   <tbody>${linesHtml}</tbody>
 </table>
-<div class="totals-wrap"><div class="totals">
-  <div class="tr"><span style="color:#64748b">Sous-total HT</span><span>${fmt(subtotal)}</span></div>
-  <div class="tr"><span style="color:#64748b">TVA</span><span>${fmt(tax)}</span></div>
-  ${invoice.paid > 0 ? `<div class="tr"><span style="color:#059669">Acompte verse</span><span style="color:#059669">&minus;${fmt(invoice.paid)}</span></div>` : ''}
-  <div class="tr grand"><span>Total TTC</span><span>${fmt(total)}</span></div>
-  ${invoice.paid > 0 && remaining > 0 ? `<div class="tr remaining"><span>Solde restant du</span><span>${fmt(remaining)}</span></div>` : ''}
-</div></div>
-${invoice.notes ? `<div class="notes"><div class="lbl" style="margin-bottom:6px">Notes</div><div class="val">${invoice.notes}</div></div>` : ''}
-<div class="footer">
-  <span>Merci pour votre confiance.</span>
-  <span>Document genere par Invoxa &middot; ${today}</span>
+<div class="category">${template.introText} · Montants exprimés en Euros</div>
+<div class="totals">
+  <div class="total-row"><span>Total HT</span><strong>${fmt(subtotal)}</strong></div>
+  <div class="total-row"><span>Total TVA 20%</span><strong>${fmt(tax)}</strong></div>
+  <div class="total-row main"><span>Total TTC</span><span>${fmt(total)}</span></div>
+  <div class="total-row"><span>Payé</span><strong>${fmt(invoice.paid)}</strong></div>
+  <div class="total-row"><span>Reste à payer</span><strong>${fmt(remaining)}</strong></div>
 </div>
+${template.includePayment && invoice.paid > 0 ? `<table class="payments"><thead><tr><th>Règlement</th><th class="right">Montant</th><th>Type</th><th>Num</th></tr></thead><tbody><tr><td>${today}</td><td class="right">${fmt(invoice.paid)}</td><td>Carte bancaire</td><td></td></tr></tbody></table>` : ''}
+${invoice.notes ? `<div class="small" style="margin-top:18px"><strong>Notes :</strong> ${invoice.notes}</div>` : ''}
+<div class="cgv"><strong>CGV :</strong> ${template.cgv}</div>
+<div class="legal"><span>${template.companyLegal}<br>${template.companyRegistration}</span><span>1 / 1</span></div>
 </body></html>`;
   const win = window.open('', '_blank', 'width=860,height=1100');
   if (win) { win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 500); }
@@ -1759,90 +1784,71 @@ function exportQuotePDF(quote: Quote, customers: Customer[], vehicles: Vehicle[]
   exportInvoicePDF(invoiceLike, customers, vehicles, products, { ...template, type: 'Devis', title: template.title || 'Devis' });
 }
 
-function InvoicePreview({ form, customers, vehicles, products }: { form: { customerId: string; vehicleId: string; paid: number; status: string; lines: LineItem[]; issueDate?: string; dueDate?: string; notes?: string; number?: string }; customers: Customer[]; vehicles: Vehicle[]; products: Product[] }) {
+function InvoicePreview({ form, customers, vehicles, products, template = defaultTemplate }: { form: { customerId: string; vehicleId: string; paid: number; status: string; lines: LineItem[]; issueDate?: string; dueDate?: string; notes?: string; number?: string }; customers: Customer[]; vehicles: Vehicle[]; products: Product[]; template?: Omit<Template, 'id' | 'name' | 'activity' | 'status' | 'type'> & { type?: string } }) {
   const customer = customers.find((c) => c.id === form.customerId);
   const vehicle = vehicles.find((v) => v.id === form.vehicleId);
   const subtotal = form.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
   const tax = form.lines.reduce((s, l) => s + l.quantity * l.unitPrice * (l.taxRate / 100), 0);
   const total = subtotal + tax;
   const remaining = Math.max(0, total - form.paid);
-  const statusClass: Record<string, string> = {
-    Payée: 'bg-emerald-100 text-emerald-700',
-    Acompte: 'bg-amber-100 text-amber-700',
-    'À payer': 'bg-red-100 text-red-700',
-    Brouillon: 'bg-gray-100 text-gray-600',
-  };
   const today = new Date().toLocaleDateString('fr-FR');
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-white text-sm shadow-sm">
-      <div className="p-5" style={{ background: '#1f6285' }}>
-        <div className="flex items-start justify-between text-white">
-          <div>
-            <div className="text-base font-extrabold tracking-tight">Invoxa</div>
-            <div className="mt-0.5 text-[11px] opacity-60">Gestion devis & factures</div>
-          </div>
-          <div className="text-right">
-            <div className="text-lg font-extrabold uppercase tracking-widest">Facture</div>
-            <div className="mt-0.5 text-[11px] opacity-70">{form.number ?? 'FAC-2026-XXXX'}</div>
-            <span className={`mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusClass[form.status] ?? 'bg-white/20 text-white'}`}>{form.status}</span>
+    <div className="overflow-hidden rounded-xl border border-border bg-white p-6 text-sm shadow-sm">
+      <div className="mb-6 flex items-start justify-between gap-8">
+        <div>
+          <div className="text-base font-extrabold tracking-tight">{template.companyName}</div>
+          <div className="mt-1 text-[11px] leading-5 text-muted-foreground">{template.companyAddress}<br />{template.companyPostalCity}<br />Tél.: {template.companyPhone}<br />Email: {template.companyEmail}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-xl font-extrabold">{template.type === 'Devis' ? 'Devis' : 'Facture'} {form.number || 'à renseigner'}</div>
+          <div className="mt-3 grid grid-cols-[92px_1fr] gap-x-2 gap-y-1 text-left text-[11px]">
+            <span className="text-muted-foreground">Réf. client :</span><strong>{customer?.id.toUpperCase() ?? '-'}</strong>
+            <span className="text-muted-foreground">Facturation :</span><strong>{form.issueDate ? new Date(form.issueDate).toLocaleDateString('fr-FR') : today}</strong>
+            <span className="text-muted-foreground">Échéance :</span><strong>{form.dueDate ? new Date(form.dueDate).toLocaleDateString('fr-FR') : '-'}</strong>
           </div>
         </div>
       </div>
-      <div className="space-y-4 p-5">
-        <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-6">
           <div>
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Emetteur</div>
-            <div className="font-semibold">Invoxa Demo</div>
-            <div className="text-[11px] text-muted-foreground">contact@invoxa.example</div>
+            <div className="mb-1 text-xs font-bold">Émetteur</div>
+            <div className="text-[12px] leading-5 text-muted-foreground"><strong className="text-foreground">{template.companyName}</strong><br />{template.companyAddress}<br />{template.companyPostalCity}</div>
           </div>
           <div>
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Facturer a</div>
+            <div className="mb-1 text-xs font-bold">Adressé à</div>
             <div className="font-semibold">{customer?.name ?? <span className="text-muted-foreground italic">—</span>}</div>
             {customer && <><div className="text-[11px] text-muted-foreground">{customer.companyName}</div><div className="text-[11px] text-muted-foreground">{customer.billingAddress}</div></>}
-          </div>
-        </div>
-        <div className="grid grid-cols-4 overflow-hidden rounded-lg border border-border">
-          <div className="border-r border-border p-2.5">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Emission</div>
-            <div className="mt-0.5 text-[11px] font-medium">{form.issueDate ? new Date(form.issueDate).toLocaleDateString('fr-FR') : today}</div>
-          </div>
-          <div className="border-r border-border p-2.5">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Echeance</div>
-            <div className="mt-0.5 text-[11px] font-medium">{form.dueDate ? new Date(form.dueDate).toLocaleDateString('fr-FR') : '—'}</div>
-          </div>
-          <div className="border-r border-border p-2.5">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Dossier</div>
-            <div className="mt-0.5 text-[11px] font-medium">{vehicle ? vehicle.plate : '—'}</div>
-          </div>
-          <div className="p-2.5">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Conditions</div>
-            <div className="mt-0.5 text-[11px] font-medium">{customer?.paymentTerms ?? 'Comptant'}</div>
+            {vehicle && <div className="mt-2 text-[11px] text-muted-foreground">Véhicule : {vehicle.plate} - {vehicle.model}</div>}
           </div>
         </div>
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full">
             <thead><tr className="bg-muted">
               <th className="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Designation</th>
+              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest text-muted-foreground">TVA</th>
+              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest text-muted-foreground">P.U. HT</th>
               <th className="px-3 py-2 text-center text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Qte</th>
               <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest text-muted-foreground">TTC</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
               {form.lines.map((line, i) => {
                 const product = products.find((p) => p.id === line.productId);
-                return <tr key={i}><td className="px-3 py-2 text-[11px]">{product?.name ?? '—'}</td><td className="px-3 py-2 text-center text-[11px]">{line.quantity}</td><td className="px-3 py-2 text-right text-[11px] font-semibold">{money(line.quantity * line.unitPrice * (1 + line.taxRate / 100))}</td></tr>;
+                return <tr key={i}><td className="px-3 py-2 text-[11px]">{product?.name ?? '—'}</td><td className="px-3 py-2 text-right text-[11px]">{line.taxRate}%</td><td className="px-3 py-2 text-right text-[11px]">{money(line.unitPrice)}</td><td className="px-3 py-2 text-center text-[11px]">{line.quantity}</td><td className="px-3 py-2 text-right text-[11px] font-semibold">{money(line.quantity * line.unitPrice * (1 + line.taxRate / 100))}</td></tr>;
               })}
             </tbody>
           </table>
         </div>
+        <div className="text-[10px] text-muted-foreground">{template.introText} · Montants exprimés en Euros</div>
         <div className="ml-auto w-44 space-y-1 text-[11px]">
-          <div className="flex justify-between"><span className="text-muted-foreground">Sous-total HT</span><span>{money(subtotal)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Total HT</span><span>{money(subtotal)}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span>{money(tax)}</span></div>
           {form.paid > 0 && <div className="flex justify-between text-emerald-600"><span>Acompte</span><span>−{money(form.paid)}</span></div>}
-          <div className="flex justify-between border-t border-border pt-1.5 text-sm font-bold" style={{ color: '#1f6285' }}><span>Total TTC</span><span>{money(total)}</span></div>
-          {form.paid > 0 && remaining > 0 && <div className="flex justify-between font-semibold text-amber-600"><span>Solde du</span><span>{money(remaining)}</span></div>}
+          <div className="flex justify-between border-t border-foreground pt-1.5 text-sm font-bold"><span>Total TTC</span><span>{money(total)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Reste à payer</span><span>{money(remaining)}</span></div>
         </div>
         {form.notes && <div className="rounded-lg bg-muted px-3 py-2.5"><div className="mb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Notes</div><div className="text-[11px] text-muted-foreground">{form.notes}</div></div>}
-        <div className="flex justify-between border-t border-border pt-3 text-[10px] text-muted-foreground"><span>Merci pour votre confiance.</span><span>Document Invoxa</span></div>
+        <div className="border-t border-border pt-3 text-[9px] leading-4 text-muted-foreground"><strong>CGV :</strong> {template.cgv}</div>
+        <div className="flex justify-between border-t border-border pt-2 text-[9px] text-muted-foreground"><span>{template.companyLegal}</span><span>1 / 1</span></div>
       </div>
     </div>
   );
@@ -1974,13 +1980,13 @@ function Pagination({ total, page, perPage, onChange }: { total: number; page: n
 }
 
 
-function InvoicesPage({ customers, vehicles, products, templates, invoices, query, onCreate, onUpdate, onOpenEntity, onCreateCustomer, onCreateProduct }: { customers: Customer[]; vehicles: Vehicle[]; products: Product[]; templates: Template[]; invoices: Invoice[]; query: string; onCreate: (invoice: Omit<Invoice, 'id'>) => void; onUpdate: (id: string, patch: Omit<Invoice, 'id'>) => void; onOpenEntity: (kind: NonNullable<RelationTarget>['kind'], id: string) => void; onCreateCustomer: (customer: Omit<Customer, 'id'>) => string; onCreateProduct: (product: Omit<Product, 'id'>) => string }) {
+function InvoicesPage({ customers, vehicles, products, templates, invoices, query, startCreate = false, onCreate, onUpdate, onOpenEntity, onCreateCustomer, onCreateProduct }: { customers: Customer[]; vehicles: Vehicle[]; products: Product[]; templates: Template[]; invoices: Invoice[]; query: string; startCreate?: boolean; onCreate: (invoice: Omit<Invoice, 'id'>) => void; onUpdate: (id: string, patch: Omit<Invoice, 'id'>) => void; onOpenEntity: (kind: NonNullable<RelationTarget>['kind'], id: string) => void; onCreateCustomer: (customer: Omit<Customer, 'id'>) => string; onCreateProduct: (product: Omit<Product, 'id'>) => string }) {
   const todayStr = new Date().toISOString().slice(0, 10);
-  const emptyForm = { customerId: '', vehicleId: '', paid: 0, status: 'À payer', lines: [] as LineItem[], issueDate: todayStr, dueDate: '', notes: '' };
+  const emptyForm = { number: '', customerId: '', vehicleId: '', paid: 0, status: 'À payer', lines: [] as LineItem[], issueDate: todayStr, dueDate: '', notes: '' };
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState<Invoice | null>(null);
   const [statusFilter, setStatusFilter] = useState('Toutes');
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(startCreate);
   const [page, setPage] = useState(1);
 
   const emptyClientForm = { name: '', companyName: '', email: '', phone: '', mobile: '', type: 'Particulier', taxNumber: '', paymentTerms: 'Comptant', currency: 'EUR', website: '', billingAddress: '', shippingAddress: '', notes: '' };
@@ -2005,20 +2011,19 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
   const totalFacture = invoices.reduce((s, inv) => s + documentTotal(products, inv.lines), 0);
   const totalEncaisse = invoices.reduce((s, inv) => s + inv.paid, 0);
   const countOpen = invoices.filter((inv) => inv.status !== 'Payée').length;
-  const previewNumber = `FAC-2026-${String(invoices.length + 100).padStart(4, '0')}`;
   const invoiceTemplate = templates.find((template) => template.type === 'Facture') ?? templates[0];
 
   const statusPill: Record<string, string> = {
-    Payée: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    Acompte: 'bg-amber-50 text-amber-700 border border-amber-200',
-    'À payer': 'bg-red-50 text-red-700 border border-red-200',
+    Payée: 'bg-muted text-foreground border border-border',
+    Acompte: 'bg-muted text-foreground border border-border',
+    'À payer': 'bg-muted text-foreground border border-border',
     Brouillon: 'bg-gray-100 text-gray-600 border border-gray-200',
   };
 
   const handleCreate = (status: string) => {
-    if (!form.customerId || form.lines.length === 0) return;
+    if (!form.number.trim() || !form.customerId || form.lines.length === 0) return;
     const computedStatus = form.paid >= total ? 'Payée' : form.paid > 0 ? 'Acompte' : status;
-    onCreate({ number: previewNumber, customerId: form.customerId, vehicleId: form.vehicleId, paid: form.paid, status: computedStatus, lines: form.lines, issueDate: form.issueDate, dueDate: form.dueDate, notes: form.notes });
+    onCreate({ number: form.number.trim(), customerId: form.customerId, vehicleId: form.vehicleId, paid: form.paid, status: computedStatus, lines: form.lines, issueDate: form.issueDate, dueDate: form.dueDate, notes: form.notes });
     setForm(emptyForm);
     setShowCreate(false);
   };
@@ -2047,6 +2052,11 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
               <h2 className="font-semibold">Détails de la facture</h2>
             </div>
             <div className="space-y-5 p-6">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">N° de facture <span className="text-red-500">*</span></label>
+                <Input value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="FA2605-3740" />
+                <p className="mt-1 text-xs text-muted-foreground">Le numéro est saisi par le gestionnaire. Aucun numéro n’est généré automatiquement.</p>
+              </div>
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client <span className="text-red-500">*</span></label>
                 <SearchCombobox
@@ -2143,11 +2153,11 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aperçu de la facture</p>
-              <Button type="button" variant="outline" size="sm" onClick={() => exportInvoicePDF({ id: 'preview', number: previewNumber, ...form }, customers, vehicles, products, invoiceTemplate)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => exportInvoicePDF({ id: 'preview', ...form, number: form.number || 'FA2605-3740' }, customers, vehicles, products, invoiceTemplate)}>
                 <Download size={14} /> Exporter PDF
               </Button>
             </div>
-            <InvoicePreview form={{ ...form, number: previewNumber }} customers={customers} vehicles={vehicles} products={products} />
+            <InvoicePreview form={form} customers={customers} vehicles={vehicles} products={products} template={invoiceTemplate} />
           </div>
         </div>
 
@@ -2199,7 +2209,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total facturé</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50"><FileText size={14} className="text-blue-600" /></div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted"><FileText size={14} /></div>
           </div>
           <div className="text-2xl font-bold">{money(totalFacture)}</div>
           <div className="mt-1 text-xs text-muted-foreground">{invoices.length} facture{invoices.length !== 1 ? 's' : ''}</div>
@@ -2207,23 +2217,23 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Encaissé</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50"><Wallet size={14} className="text-emerald-600" /></div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted"><Wallet size={14} /></div>
           </div>
-          <div className="text-2xl font-bold text-emerald-700">{money(totalEncaisse)}</div>
-          <div className="mt-1 text-xs text-emerald-600">{totalFacture > 0 ? Math.round((totalEncaisse / totalFacture) * 100) : 0}% du total</div>
+          <div className="text-2xl font-bold">{money(totalEncaisse)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{totalFacture > 0 ? Math.round((totalEncaisse / totalFacture) * 100) : 0}% du total</div>
         </Card>
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Solde dû</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-50"><Clock size={14} className="text-amber-600" /></div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted"><Clock size={14} /></div>
           </div>
-          <div className="text-2xl font-bold text-amber-700">{money(totalFacture - totalEncaisse)}</div>
-          <div className="mt-1 text-xs text-amber-600">À encaisser</div>
+          <div className="text-2xl font-bold">{money(totalFacture - totalEncaisse)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">À encaisser</div>
         </Card>
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">En attente</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-50"><AlertCircle size={14} className="text-orange-500" /></div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted"><AlertCircle size={14} /></div>
           </div>
           <div className="text-2xl font-bold">{countOpen}</div>
           <div className="mt-1 text-xs text-muted-foreground">non soldée{countOpen !== 1 ? 's' : ''}</div>
@@ -2357,17 +2367,44 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
     onUpdateTemplate(selectedTemplate.id, { ...selectedTemplate, ...patch });
   };
   const themeOptions = [
-    { label: 'Rouge moderne', primaryColor: '#ef1237', accentColor: '#fff1f3' },
-    { label: 'Bleu atelier', primaryColor: '#1f6285', accentColor: '#e7f4f1' },
-    { label: 'Violet net', primaryColor: '#6d5dfc', accentColor: '#f0eeff' },
+    { label: 'Noir classique', primaryColor: '#111111', accentColor: '#f3f3f3' },
+    { label: 'Contraste fort', primaryColor: '#000000', accentColor: '#ffffff' },
+    { label: 'Gris atelier', primaryColor: '#2b2b2b', accentColor: '#eeeeee' },
   ];
   const renderPanel = () => {
     if (!selectedTemplate) return null;
     if (editorSection === 'En-tête') {
       return (
         <div className="space-y-5">
-          <SectionHeading title="En-tête et pied de page" />
-          <ToggleRow label="Afficher le logo de l’entreprise" checked />
+          <SectionHeading title="Informations du garage" />
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Nom du garage</label>
+            <Input value={selectedTemplate.companyName} onChange={(event) => updateSelectedTemplate({ companyName: event.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Adresse</label>
+            <Input value={selectedTemplate.companyAddress} onChange={(event) => updateSelectedTemplate({ companyAddress: event.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Code postal et ville</label>
+            <Input value={selectedTemplate.companyPostalCity} onChange={(event) => updateSelectedTemplate({ companyPostalCity: event.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Téléphone</label>
+              <Input value={selectedTemplate.companyPhone} onChange={(event) => updateSelectedTemplate({ companyPhone: event.target.value })} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Email</label>
+              <Input value={selectedTemplate.companyEmail} onChange={(event) => updateSelectedTemplate({ companyEmail: event.target.value })} />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">TVA intracommunautaire</label>
+            <Input value={selectedTemplate.companyVat} onChange={(event) => updateSelectedTemplate({ companyVat: event.target.value })} />
+          </div>
+          <TextAreaControl label="Mentions société" value={selectedTemplate.companyLegal} onChange={(value) => updateSelectedTemplate({ companyLegal: value })} />
+          <TextAreaControl label="Registre / TVA" value={selectedTemplate.companyRegistration} onChange={(value) => updateSelectedTemplate({ companyRegistration: value })} />
           <ColorInput label="Couleur d’arrière-plan" value={selectedTemplate.accentColor} onChange={(value) => updateSelectedTemplate({ accentColor: value })} />
           <TextAreaControl label="Pied de page" value={selectedTemplate.footerText} onChange={(value) => updateSelectedTemplate({ footerText: value })} />
         </div>
@@ -2403,8 +2440,9 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
       return (
         <div className="space-y-5">
           <SectionHeading title="Textes du modèle" />
-          <TextAreaControl label="Introduction" value={selectedTemplate.introText} onChange={(value) => updateSelectedTemplate({ introText: value })} />
+          <TextAreaControl label="Catégorie / introduction" value={selectedTemplate.introText} onChange={(value) => updateSelectedTemplate({ introText: value })} />
           <TextAreaControl label="Conditions de paiement" value={selectedTemplate.paymentText} onChange={(value) => updateSelectedTemplate({ paymentText: value })} />
+          <TextAreaControl label="CGV" value={selectedTemplate.cgv} onChange={(value) => updateSelectedTemplate({ cgv: value })} />
           <div className="rounded-lg border border-border bg-muted/40 p-3">
             <div className="text-sm font-semibold">Variables disponibles</div>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -2457,14 +2495,14 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#f5f6fa]">
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#f7f7f7]">
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-white px-5">
         <h1 className="shrink-0 whitespace-nowrap text-2xl font-semibold">Éditer un modèle</h1>
         <div className="ml-4 flex min-w-0 items-center gap-3 overflow-x-auto">
           <Select value={selectedTemplateId} onChange={(event) => setSelectedTemplateId(event.target.value)} className="w-52">
             {templates.map((item) => <option key={item.id} value={item.id}>{item.type} · {item.name}</option>)}
           </Select>
-          <Select value={selectedTemplate?.primaryColor ?? '#ef1237'} onChange={(event) => {
+          <Select value={selectedTemplate?.primaryColor ?? '#111111'} onChange={(event) => {
             const theme = themeOptions.find((item) => item.primaryColor === event.target.value);
             if (theme) updateSelectedTemplate({ primaryColor: theme.primaryColor, accentColor: theme.accentColor });
           }} className="w-72">
@@ -2480,13 +2518,13 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
 
       {selectedTemplate && (
         <div className="grid min-h-0 flex-1 grid-cols-[104px_600px_minmax(0,1fr)]">
-          <nav className="bg-slate-950 p-2">
+          <nav className="bg-black p-2">
             {editorSections.map((section) => (
               <button
                 key={section.label}
                 type="button"
                 onClick={() => setEditorSection(section.label)}
-                className={`mb-2 flex h-20 w-full flex-col items-center justify-center gap-1 rounded-md px-2 text-center text-xs font-medium transition-colors ${editorSection === section.label ? 'bg-blue-500 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
+                className={`mb-2 flex h-20 w-full flex-col items-center justify-center gap-1 rounded-md px-2 text-center text-xs font-medium transition-colors ${editorSection === section.label ? 'bg-white text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
               >
                 <section.icon size={21} />
                 {section.label}

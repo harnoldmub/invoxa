@@ -28,6 +28,11 @@ const workOrders = [
 ];
 
 const customerName = (customers: Customer[], customerId: string) => customers.find((customer) => customer.id === customerId)?.name ?? 'Client inconnu';
+const statusClass = (status: string) => {
+  if (status === 'Prêt') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (status === 'En atelier') return 'border-blue-200 bg-blue-50 text-blue-700';
+  return 'border-amber-200 bg-amber-50 text-amber-800';
+};
 
 export function GarageWorkspace({ customers, vehicles, query, onCreateVehicle, onUpdateVehicle, onOpenEntity, onCreateGarageQuote, onCreateGarageInvoice }: GarageWorkspaceProps) {
   const [plateQuery, setPlateQuery] = useState('');
@@ -59,14 +64,14 @@ export function GarageWorkspace({ customers, vehicles, query, onCreateVehicle, o
     <section className="space-y-5">
       <div>
         <h1 className="text-2xl font-semibold">Garage automobile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Véhicules, recherche immatriculation, interventions, ordres de réparation, pièces et main-d’oeuvre.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Un client peut avoir plusieurs dossiers véhicule, avec historique, interventions, devis et factures liés.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[1.25fr_0.75fr]">
         <Card className="p-5">
           <div className="mb-5 flex flex-col items-stretch justify-between gap-4 xl:flex-row xl:items-center">
             <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <Car size={18} />
                 Garage
               </div>
@@ -116,12 +121,12 @@ export function GarageWorkspace({ customers, vehicles, query, onCreateVehicle, o
               <tbody>
                 {visibleVehicles.map((vehicle) => (
                   <tr key={vehicle.id} className="border-t border-border bg-white">
-                    <td className="px-4 py-3 font-semibold"><button className="text-primary hover:underline" onClick={() => onOpenEntity('vehicle', vehicle.id)}>{vehicle.plate}</button></td>
-                    <td className="px-4 py-3"><button className="text-primary hover:underline" onClick={() => onOpenEntity('customer', vehicle.customerId)}>{customerName(customers, vehicle.customerId)}</button></td>
+                    <td className="px-4 py-3 font-semibold"><button className="text-foreground underline-offset-4 hover:underline" onClick={() => onOpenEntity('vehicle', vehicle.id)}>{vehicle.plate}</button></td>
+                    <td className="px-4 py-3"><button className="text-foreground underline-offset-4 hover:underline" onClick={() => onOpenEntity('customer', vehicle.customerId)}>{customerName(customers, vehicle.customerId)}</button></td>
                     <td className="px-4 py-3">{vehicle.model}</td>
                     <td className="px-4 py-3">{vehicle.mileage.toLocaleString('fr-FR')} km</td>
                     <td className="px-4 py-3">
-                      <Badge className={vehicle.status === 'Prêt' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}>{vehicle.status}</Badge>
+                      <Badge className={`border ${statusClass(vehicle.status)}`}>{vehicle.status}</Badge>
                     </td>
                     <td className="px-4 py-3">
                       <Button type="button" variant="outline" size="sm" onClick={() => setEditing(vehicle)}>
@@ -153,7 +158,7 @@ export function GarageWorkspace({ customers, vehicles, query, onCreateVehicle, o
           <Card className="p-5">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold">Ordres de réparation</h3>
-              <Wrench size={18} className="text-primary" />
+              <Wrench size={18} />
             </div>
             <div className="space-y-3">
               {workOrders.map((order) => (
@@ -163,7 +168,7 @@ export function GarageWorkspace({ customers, vehicles, query, onCreateVehicle, o
                     <span className="text-sm font-semibold">{order.total}</span>
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">{order.title}</div>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-primary">
+                  <div className="mt-3 flex items-center gap-2 text-xs text-foreground">
                     <History size={14} />
                     {order.link}
                   </div>
@@ -175,7 +180,7 @@ export function GarageWorkspace({ customers, vehicles, query, onCreateVehicle, o
           <Card className="p-5">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold">Champs et documents</h3>
-              <Gauge size={18} className="text-primary" />
+              <Gauge size={18} />
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <InfoTile title="Véhicule" body="VIN, énergie, flotte, garantie" />

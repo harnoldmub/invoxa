@@ -3,17 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 20% 98%;
-  --foreground: 222 35% 12%;
-  --muted: 210 20% 94%;
-  --muted-foreground: 216 12% 43%;
-  --accent: 170 48% 92%;
-  --accent-foreground: 176 52% 19%;
-  --primary: 198 78% 28%;
+  --background: 0 0% 97%;
+  --foreground: 0 0% 7%;
+  --muted: 0 0% 94%;
+  --muted-foreground: 0 0% 42%;
+  --accent: 0 0% 91%;
+  --accent-foreground: 0 0% 7%;
+  --primary: 0 0% 7%;
   --primary-foreground: 0 0% 100%;
-  --border: 210 18% 86%;
-  --input: 210 18% 86%;
-  --ring: 198 78% 28%;
+  --border: 0 0% 84%;
+  --input: 0 0% 84%;
+  --ring: 0 0% 7%;
 }
 
 * {
