@@ -112,6 +112,7 @@ const nav: Array<{ key: Page; label: string; icon: typeof LayoutDashboard }> = [
   { key: 'catalog', label: 'Catalogue', icon: Package },
   { key: 'payments', label: 'Historique', icon: Clock },
   { key: 'templates', label: 'Modèle facture', icon: Sparkles },
+  { key: 'settings', label: 'Paramètres', icon: Settings },
 ];
 
 const activities = [
@@ -144,7 +145,7 @@ const lineFromProduct = (products: Product[], productId: string, quantity = 1): 
 };
 const defaultTemplate = {
   title: 'Facture',
-  primaryColor: '#111827',
+  primaryColor: '#2B4C7E',
   accentColor: '#f3f3f3',
   introText: 'Catégorie d’opérations : Livraison de marchandises',
   footerText: 'Powered by Invoxa',
@@ -1833,11 +1834,11 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
     const lineHT = line.quantity * line.unitPrice;
     const lineTTC = lineHT * (1 + line.taxRate / 100);
     return `<tr>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">- ${product?.name ?? 'Article'}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${line.taxRate}%</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtN(line.unitPrice)}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${line.quantity}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtN(lineHT)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb">- ${product?.name ?? 'Article'}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;text-align:right">${line.taxRate}%</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;text-align:right">${fmtN(line.unitPrice)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;text-align:right">${line.quantity}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;text-align:right">${fmtN(lineHT)}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtN(lineTTC)}</td>
     </tr>`;
   }).join('');
@@ -1867,75 +1868,78 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
 <head><meta charset="UTF-8"><title>${documentLabel} ${invoice.number}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff;padding:36px 42px;font-size:11.5px}
+body{font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff;padding:28px 38px;font-size:11px}
 @media print{body{padding:0}@page{margin:14mm 12mm;size:A4}}
 </style>
 </head>
 <body>
-<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
-  <div>
-    <div style="font-size:17px;font-weight:900;letter-spacing:.02em;margin-bottom:8px">${template.companyName}</div>
-    <div style="font-size:10.5px;line-height:1.6;color:#374151">${template.companyAddress}<br>${template.companyPostalCity}</div>
-    <div style="font-size:10.5px;line-height:1.6;color:#374151;margin-top:4px">Tél.: ${template.companyPhone}<br>Email: ${template.companyEmail}</div>
-  </div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+  <div style="font-size:20px;font-weight:900;letter-spacing:.01em">${template.companyName}</div>
   <div style="text-align:right">
-    <div style="font-size:19px;font-weight:800">${documentLabel} ${invoice.number}</div>
-    <div style="display:grid;grid-template-columns:130px auto;gap:3px 14px;margin-top:14px;text-align:left;font-size:11px">
-      <span style="color:#6b7280">Réf. client :</span><strong>${customer?.id.toUpperCase() ?? '-'}</strong>
-      <span style="color:#6b7280">Date facturation :</span><strong>${invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : today}</strong>
-      <span style="color:#6b7280">Date échéance :</span><strong>${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : today}</strong>
+    <div style="font-size:18px;font-weight:800">${documentLabel} ${invoice.number}</div>
+    <div style="margin-top:10px;font-size:10.5px;line-height:1.8;text-align:left">
+      <span style="color:#6b7280">Réf. client :</span> <strong>${customer?.taxNumber || customer?.id?.toUpperCase() || '-'}</strong><br>
+      <span style="color:#6b7280">Date facturation :</span> <strong>${invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : today}</strong><br>
+      <span style="color:#6b7280">Date échéance :</span> <strong>${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : today}</strong>
     </div>
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:24px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px">
   <div>
-    <div style="font-weight:700;margin-bottom:6px">Émetteur</div>
-    <div style="line-height:1.6;font-size:11px"><strong>${template.companyName}</strong><br>${template.companyAddress}<br>${template.companyPostalCity}<br><br>Tél.: ${template.companyPhone}<br>Email: ${template.companyEmail}</div>
+    <div style="font-weight:700;font-size:10.5px;margin-bottom:4px">Émetteur</div>
+    <div style="border:1px solid #bbb;background:#f5f5f5;padding:10px 12px;font-size:10.5px;line-height:1.65;min-height:88px">
+      <strong>${template.companyName}</strong><br>${template.companyAddress}<br>${template.companyPostalCity}<br><br>Tél. : ${template.companyPhone}<br>Email: ${template.companyEmail}
+    </div>
   </div>
   <div>
-    <div style="font-weight:700;margin-bottom:6px">Adressé à</div>
-    <div style="line-height:1.6;font-size:11px"><strong>${customer?.name ?? 'client'}</strong>${customer?.companyName ? `<br>${customer.companyName}` : ''}${customer?.billingAddress ? `<br>${customer.billingAddress}` : ''}${customer?.taxNumber ? `<br>TVA : ${customer.taxNumber}` : ''}</div>
-    ${vehicle ? `<div style="margin-top:8px;font-size:10.5px;color:#6b7280">Véhicule : ${vehicle.plate} - ${vehicle.model}</div>` : ''}
+    <div style="font-weight:700;font-size:10.5px;margin-bottom:4px">Adressé à</div>
+    <div style="border:1px solid #bbb;background:#fff;padding:10px 12px;font-size:10.5px;line-height:1.65;min-height:88px">
+      ${customer ? `<strong>${customer.name}</strong>${customer.companyName && customer.companyName !== customer.name ? `<br>${customer.companyName}` : ''}${customer.billingAddress ? `<br>${customer.billingAddress}` : ''}${customer.taxNumber ? `<br>TVA : ${customer.taxNumber}` : ''}` : 'client'}
+    </div>
+    ${vehicle ? `<div style="margin-top:5px;font-size:10px;color:#6b7280">Véhicule : ${vehicle.plate} — ${vehicle.model}</div>` : ''}
   </div>
 </div>
 
-<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;font-size:10.5px;color:#4b5563">
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;font-size:10px;color:#4b5563">
   <span>${template.introText}</span>
   <span>Montants exprimés en Euros</span>
 </div>
 
-<table style="width:100%;border-collapse:collapse;margin-bottom:16px">
-  <thead><tr style="background:#f3f4f6">
-    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:left">Désignation</th>
-    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">TVA</th>
-    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">P.U. HT</th>
-    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">Qté</th>
-    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">Total HT</th>
-    <th style="padding:7px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#4b5563;border-bottom:1px solid #d1d5db;text-align:right">Total TTC</th>
+<table style="width:100%;border-collapse:collapse;border:1px solid #d1d5db;margin-bottom:14px">
+  <thead><tr style="background:${template.primaryColor};color:#fff">
+    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:left;border-right:1px solid rgba(255,255,255,.2)">Désignation</th>
+    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right;border-right:1px solid rgba(255,255,255,.2)">TVA</th>
+    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right;border-right:1px solid rgba(255,255,255,.2)">P.U. HT</th>
+    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right;border-right:1px solid rgba(255,255,255,.2)">Qté</th>
+    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right;border-right:1px solid rgba(255,255,255,.2)">Total HT</th>
+    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right">Total TTC</th>
   </tr></thead>
   <tbody>${linesHtml}</tbody>
 </table>
 
 <div style="display:flex;gap:32px;justify-content:flex-end">
-  <div style="width:260px">
+  <div style="width:270px;font-size:11px">
     <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>Total HT</span><span>${fmtN(subtotal)}</span></div>
     ${taxRowsHtml}
-    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:2px solid #111827;font-size:13px;font-weight:800"><span>Total TTC</span><span>${fmtN(total)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:2px solid #111827;font-size:12px;font-weight:800"><span>Total TTC</span><span>${fmtN(total)}</span></div>
     <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>Payé</span><span>${fmtN(invoice.paid)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Reste à payer</span><span>${fmtN(remaining)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700"><span>Reste à payer</span><span>${fmtN(remaining)}</span></div>
   </div>
 </div>
 
 ${paymentsHtml}
-${invoice.notes ? `<div style="margin-top:18px;font-size:10.5px"><strong>Notes :</strong> ${invoice.notes}</div>` : ''}
-<div style="margin-top:20px;border-top:1px solid #d1d5db;padding-top:8px;font-size:9px;color:#6b7280;display:flex;justify-content:space-between">
+${invoice.notes ? `<div style="margin-top:14px;font-size:10.5px"><strong>Notes :</strong> ${invoice.notes}</div>` : ''}
+
+<div style="margin-top:auto;padding-top:18px"></div>
+<div style="border-top:1px solid #d1d5db;padding-top:7px;font-size:9px;color:#6b7280;display:flex;justify-content:space-between;margin-top:20px">
   <span>${template.companyLegal}<br>${template.companyRegistration}</span>
   <span>1/1</span>
 </div>
-<div style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:10px;font-size:8.5px;line-height:1.5;color:#4b5563"><strong>CGV :</strong> ${template.cgv}</div>
+<div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:8px;font-size:8.5px;line-height:1.5;color:#4b5563"><strong>CGV :</strong> ${template.cgv}</div>
 </body></html>`;
-  const win = window.open('', '_blank', 'width=860,height=1100');
+    const win = window.open('', '_blank', 'width=860,height=1100');
   if (win) { win.document.write(html); win.document.close(); win.focus(); }
 }
 
@@ -1980,42 +1984,48 @@ function InvoicePreview({ form, customers, vehicles, products, template = defaul
         </div>
       </div>
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="mb-1 text-xs font-bold">Émetteur</div>
-            <div className="text-[12px] leading-5 text-muted-foreground"><strong className="text-foreground">{template.companyName}</strong><br />{template.companyAddress}<br />{template.companyPostalCity}</div>
+            <div className="mb-1 text-[10px] font-bold">Émetteur</div>
+            <div className="border border-gray-300 bg-gray-50 p-2.5 text-[10px] leading-5">
+              <strong>{template.companyName}</strong><br />{template.companyAddress}<br />{template.companyPostalCity}<br /><br />Tél. : {template.companyPhone}<br />Email: {template.companyEmail}
+            </div>
           </div>
           <div>
-            <div className="mb-1 text-xs font-bold">Adressé à</div>
-            <div className="font-semibold">{customer?.name ?? <span className="text-muted-foreground italic">—</span>}</div>
-            {customer && <><div className="text-[11px] text-muted-foreground">{customer.companyName}</div><div className="text-[11px] text-muted-foreground">{customer.billingAddress}</div></>}
-            {vehicle && <div className="mt-2 text-[11px] text-muted-foreground">Véhicule : {vehicle.plate} - {vehicle.model}</div>}
+            <div className="mb-1 text-[10px] font-bold">Adressé à</div>
+            <div className="border border-gray-300 bg-white p-2.5 text-[10px] leading-5 min-h-[72px]">
+              {customer ? <><strong>{customer.name}</strong>{customer.billingAddress && <><br />{customer.billingAddress}</>}</> : <span className="text-muted-foreground italic">—</span>}
+            </div>
+            {vehicle && <div className="mt-1 text-[9px] text-muted-foreground">Véhicule : {vehicle.plate} — {vehicle.model}</div>}
           </div>
         </div>
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full">
-            <thead><tr className="bg-muted">
-              <th className="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Designation</th>
-              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest text-muted-foreground">TVA</th>
-              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest text-muted-foreground">P.U. HT</th>
-              <th className="px-3 py-2 text-center text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Qte</th>
-              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest text-muted-foreground">TTC</th>
+        <div className="overflow-hidden rounded border border-border">
+          <table className="w-full border-collapse">
+            <thead><tr style={{ background: template.primaryColor ?? '#2B4C7E', color: '#fff' }}>
+              <th className="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-widest">Désignation</th>
+              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">TVA</th>
+              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">P.U. HT</th>
+              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">Qté</th>
+              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">Total HT</th>
+              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">Total TTC</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
               {form.lines.map((line, i) => {
                 const product = products.find((p) => p.id === line.productId);
-                return <tr key={i}><td className="px-3 py-2 text-[11px]">{product?.name ?? '—'}</td><td className="px-3 py-2 text-right text-[11px]">{line.taxRate}%</td><td className="px-3 py-2 text-right text-[11px]">{money(line.unitPrice)}</td><td className="px-3 py-2 text-center text-[11px]">{line.quantity}</td><td className="px-3 py-2 text-right text-[11px] font-semibold">{money(line.quantity * line.unitPrice * (1 + line.taxRate / 100))}</td></tr>;
+                const ht = line.quantity * line.unitPrice;
+                const ttc = ht * (1 + line.taxRate / 100);
+                return <tr key={i}><td className="px-3 py-2 text-[10px] border-r border-border">- {product?.name ?? '—'}</td><td className="px-3 py-2 text-right text-[10px] border-r border-border">{line.taxRate}%</td><td className="px-3 py-2 text-right text-[10px] border-r border-border">{money(line.unitPrice)}</td><td className="px-3 py-2 text-right text-[10px] border-r border-border">{line.quantity}</td><td className="px-3 py-2 text-right text-[10px] border-r border-border">{money(ht)}</td><td className="px-3 py-2 text-right text-[10px] font-semibold">{money(ttc)}</td></tr>;
               })}
             </tbody>
           </table>
         </div>
         <div className="text-[10px] text-muted-foreground">{template.introText} · Montants exprimés en Euros</div>
-        <div className="ml-auto w-44 space-y-1 text-[11px]">
-          <div className="flex justify-between"><span className="text-muted-foreground">Total HT</span><span>{money(subtotal)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span>{money(tax)}</span></div>
-          {form.paid > 0 && <div className="flex justify-between text-emerald-600"><span>Acompte</span><span>−{money(form.paid)}</span></div>}
-          <div className="flex justify-between border-t border-foreground pt-1.5 text-sm font-bold"><span>Total TTC</span><span>{money(total)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Reste à payer</span><span>{money(remaining)}</span></div>
+        <div className="ml-auto w-56 space-y-0 text-[10.5px] border border-border">
+          <div className="flex justify-between px-3 py-1 border-b border-border"><span>Total HT</span><span>{money(subtotal)}</span></div>
+          <div className="flex justify-between px-3 py-1 border-b border-border"><span>Total TVA 20%</span><span>{money(tax)}</span></div>
+          <div className="flex justify-between px-3 py-1.5 border-b-2 border-foreground font-bold text-[11px]"><span>Total TTC</span><span>{money(total)}</span></div>
+          <div className="flex justify-between px-3 py-1 border-b border-border"><span>Payé</span><span>{money(form.paid)}</span></div>
+          <div className="flex justify-between px-3 py-1 font-semibold"><span>Reste à payer</span><span>{money(remaining)}</span></div>
         </div>
         {form.notes && <div className="rounded-lg bg-muted px-3 py-2.5"><div className="mb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Notes</div><div className="text-[11px] text-muted-foreground">{form.notes}</div></div>}
         <div className="border-t border-border pt-3 text-[9px] leading-4 text-muted-foreground"><strong>CGV :</strong> {template.cgv}</div>
