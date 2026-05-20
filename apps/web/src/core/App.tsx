@@ -46,7 +46,9 @@ import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { GarageWorkspace } from '../modules/garage/pages/GarageWorkspace';
 
-type Page = 'dashboard' | 'crm' | 'catalog' | 'quotes' | 'invoices' | 'payments' | 'garage' | 'templates' | 'settings' | 'help';
+type Page = 'dashboard' | 'crm' | 'catalog' | 'invoices' | 'payments' | 'garage' | 'templates' | 'settings' | 'help';
+type GarageProfile = { id: string; name: string; address: string; postalCity: string; phone: string; email: string; legal: string; registration: string; vat: string; cgv: string; smtp: { host: string; port: string; user: string; password: string; from: string } };
+type GarageData = { customers: Customer[]; vehicles: Vehicle[]; invoices: Invoice[]; payments: Payment[] };
 type ActivityKey = 'garage' | 'services';
 type Customer = {
   id: string;
@@ -104,7 +106,7 @@ type RelationTarget = { kind: 'customer' | 'product' | 'quote' | 'invoice' | 've
 
 const nav: Array<{ key: Page; label: string; icon: typeof LayoutDashboard }> = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { key: 'invoices', label: 'Nouvelle facture', icon: FileText },
+  { key: 'invoices', label: 'Factures', icon: FileText },
   { key: 'crm', label: 'Clients', icon: Users },
   { key: 'garage', label: 'Garage', icon: Car },
   { key: 'catalog', label: 'Catalogue', icon: Package },
@@ -222,6 +224,37 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
   );
 }
 
+const defaultCgv = "Les marchandises livrées demeurent notre propriété jusqu’au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d’intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d’escompte pour paiement anticipé. Rétraction et politique de remboursement : un achat effectué en magasin est réputé ferme et définitif.";
+const defaultSmtp = { host: '', port: '587', user: '', password: '', from: '' };
+
+const initialGarages: GarageProfile[] = [
+  { id: 'g1', name: 'CENTER AUTO PIECE', address: '1 RUE DES ARTS', postalCity: '59280 ARMENTIERES', phone: '03 20 95 31 98', email: 'cap59280@hotmail.com', legal: 'Société à responsabilité limitée (SARL) - Capital de 4 000 € - SIRET: 84238627800019', registration: 'RCS/RM: 842 386 278 R.C.S. Lille - Numéro TVA: FR95842386278', vat: 'FR95842386278', cgv: defaultCgv, smtp: defaultSmtp },
+  { id: 'g2', name: 'CAP - Dépôt Nord', address: '', postalCity: '', phone: '', email: '', legal: '', registration: '', vat: '', cgv: defaultCgv, smtp: defaultSmtp },
+];
+const initialAllData: Record<string, GarageData> = {
+  g1: {
+    customers: [
+      { id: 'c1', name: 'Martin Services', companyName: 'Martin Services SARL', email: 'contact@martin.example', phone: '06 21 48 90 12', mobile: '06 21 48 90 13', type: 'Entreprise', taxNumber: 'FR 45 123456789', paymentTerms: '30 jours', currency: 'EUR', website: 'martin-services.example', billingAddress: '12 rue des Ateliers, 33000 Bordeaux', shippingAddress: '12 rue des Ateliers, 33000 Bordeaux', notes: 'Client flotte utilitaires.' },
+      { id: 'c2', name: 'Cabinet Dentaire Nova', companyName: 'Cabinet Dentaire Nova', email: 'admin@nova.example', phone: '05 59 11 20 30', mobile: '06 70 10 20 30', type: 'Professionnel', taxNumber: 'FR 31 987654321', paymentTerms: 'Comptant', currency: 'EUR', website: 'nova-dentaire.example', billingAddress: '8 avenue Santé, 64000 Pau', shippingAddress: '8 avenue Santé, 64000 Pau', notes: 'Priorité véhicule de remplacement.' },
+      { id: 'c3', name: 'Logisud', companyName: 'Logisud Transport', email: 'fleet@logisud.example', phone: '04 88 91 42 10', mobile: '06 88 91 42 10', type: 'Flotte', taxNumber: 'FR 89 456789123', paymentTerms: '45 jours', currency: 'EUR', website: 'logisud.example', billingAddress: '22 quai Logistique, 13002 Marseille', shippingAddress: 'Dépôt Sud, 13015 Marseille', notes: 'Validation par responsable parc.' },
+    ],
+    vehicles: [
+      { id: 'v1', plate: 'AB-482-KL', customerId: 'c1', model: 'Renault Master', mileage: 182400, status: 'Diagnostic' },
+      { id: 'v2', plate: 'GH-219-TQ', customerId: 'c2', model: 'Peugeot 308', mileage: 73120, status: 'En atelier' },
+      { id: 'v3', plate: 'PT-902-RS', customerId: 'c3', model: 'Mercedes Vito', mileage: 241850, status: 'Prêt' },
+    ],
+    invoices: [
+      { id: 'f1', number: 'FAC-2026-0098', customerId: 'c2', vehicleId: 'v2', paid: 389, status: 'Payée', lines: [{ productId: 'p2', quantity: 4.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-01', dueDate: '2026-05-31' },
+      { id: 'f2', number: 'FAC-2026-0099', customerId: 'c1', vehicleId: 'v1', paid: 250, status: 'Acompte', lines: [{ productId: 'p1', quantity: 1, unitPrice: 89, taxRate: 20 }, { productId: 'p3', quantity: 2, unitPrice: 64, taxRate: 20 }], issueDate: '2026-05-10', dueDate: '2026-06-10', notes: 'Acompte de 250 EUR recu le 13 mai.' },
+    ],
+    payments: [
+      { id: 'pay1', invoiceId: 'f1', amount: 389, method: 'Carte', date: '2026-05-12' },
+      { id: 'pay2', invoiceId: 'f2', amount: 250, method: 'Virement', date: '2026-05-13' },
+    ],
+  },
+  g2: { customers: [], vehicles: [], invoices: [], payments: [] },
+};
+
 export function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('invoxa_auth') === 'ok');
   const [activePage, setActivePage] = useState<Page>('dashboard');
@@ -230,50 +263,56 @@ export function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [toast, setToast] = useState('Bienvenue');
   const [selectedActivity, setSelectedActivity] = useState<ActivityKey>('garage');
-  const [company, setCompany] = useState({
-    name: 'CENTER AUTO PIECE',
-    address: '1 RUE DES ARTS',
-    postalCity: '59280 ARMENTIERES',
-    phone: '03 20 95 31 98',
-    email: 'cap59280@hotmail.com',
-    legal: 'Société à responsabilité limitée (SARL) - Capital de 4 000 € - SIRET: 84238627800019',
-    registration: 'RCS/RM: 842 386 278 R.C.S. Lille - Numéro TVA: FR95842386278',
-    vat: 'FR95842386278',
-    cgv: "Les marchandises livrées demeurent notre propriété jusqu'au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d'intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d'escompte pour paiement anticipé. Rétraction et politique de remboursement : un achat effectué en magasin est réputé ferme et définitif.",
-  });
+
+  const [garages, setGarages] = useState<GarageProfile[]>(initialGarages);
+  const [activeGarageId, setActiveGarageId] = useState('g1');
+  const [allGarageData, setAllGarageData] = useState<Record<string, GarageData>>(initialAllData);
+  const [showNewGarageModal, setShowNewGarageModal] = useState(false);
+  const [newGarageName, setNewGarageName] = useState('');
+
+  const company = garages.find((g) => g.id === activeGarageId) ?? garages[0];
+  const setCompany = (updated: GarageProfile) => setGarages((prev) => prev.map((g) => g.id === activeGarageId ? updated : g));
+
+  const { customers, vehicles, invoices, payments } = allGarageData[activeGarageId] ?? { customers: [], vehicles: [], invoices: [], payments: [] };
+
+  const updateGarageData = (patch: Partial<GarageData>) =>
+    setAllGarageData((prev) => ({ ...prev, [activeGarageId]: { ...prev[activeGarageId], ...patch } }));
+
+  const setCustomers = (updater: Customer[] | ((prev: Customer[]) => Customer[])) =>
+    setAllGarageData((prev) => { const cur = prev[activeGarageId]; return { ...prev, [activeGarageId]: { ...cur, customers: typeof updater === 'function' ? updater(cur.customers) : updater } }; });
+  const setVehicles = (updater: Vehicle[] | ((prev: Vehicle[]) => Vehicle[])) =>
+    setAllGarageData((prev) => { const cur = prev[activeGarageId]; return { ...prev, [activeGarageId]: { ...cur, vehicles: typeof updater === 'function' ? updater(cur.vehicles) : updater } }; });
+  const setInvoices = (updater: Invoice[] | ((prev: Invoice[]) => Invoice[])) =>
+    setAllGarageData((prev) => { const cur = prev[activeGarageId]; return { ...prev, [activeGarageId]: { ...cur, invoices: typeof updater === 'function' ? updater(cur.invoices) : updater } }; });
+  const setPayments = (updater: Payment[] | ((prev: Payment[]) => Payment[])) =>
+    setAllGarageData((prev) => { const cur = prev[activeGarageId]; return { ...prev, [activeGarageId]: { ...cur, payments: typeof updater === 'function' ? updater(cur.payments) : updater } }; });
+
+  const switchGarage = (garageId: string) => {
+    setActiveGarageId(garageId);
+    setRelationTarget(null);
+    setRelationHistory([]);
+  };
+
+  const createGarage = () => {
+    if (!newGarageName.trim()) return;
+    const newId = id('g');
+    setGarages((prev) => [...prev, { id: newId, name: newGarageName.trim(), address: '', postalCity: '', phone: '', email: '', legal: '', registration: '', vat: '', cgv: defaultCgv, smtp: defaultSmtp }]);
+    setAllGarageData((prev) => ({ ...prev, [newId]: { customers: [], vehicles: [], invoices: [], payments: [] } }));
+    setActiveGarageId(newId);
+    setNewGarageName('');
+    setShowNewGarageModal(false);
+    flash('Nouveau garage créé');
+  };
+
   const [relationTarget, setRelationTarget] = useState<RelationTarget>(null);
   const [relationHistory, setRelationHistory] = useState<NonNullable<RelationTarget>[]>([]);
-
-  const [customers, setCustomers] = useState<Customer[]>([
-    { id: 'c1', name: 'Martin Services', companyName: 'Martin Services SARL', email: 'contact@martin.example', phone: '06 21 48 90 12', mobile: '06 21 48 90 13', type: 'Entreprise', taxNumber: 'FR 45 123456789', paymentTerms: '30 jours', currency: 'EUR', website: 'martin-services.example', billingAddress: '12 rue des Ateliers, 33000 Bordeaux', shippingAddress: '12 rue des Ateliers, 33000 Bordeaux', notes: 'Client flotte utilitaires.' },
-    { id: 'c2', name: 'Cabinet Dentaire Nova', companyName: 'Cabinet Dentaire Nova', email: 'admin@nova.example', phone: '05 59 11 20 30', mobile: '06 70 10 20 30', type: 'Professionnel', taxNumber: 'FR 31 987654321', paymentTerms: 'Comptant', currency: 'EUR', website: 'nova-dentaire.example', billingAddress: '8 avenue Santé, 64000 Pau', shippingAddress: '8 avenue Santé, 64000 Pau', notes: 'Priorité véhicule de remplacement.' },
-    { id: 'c3', name: 'Logisud', companyName: 'Logisud Transport', email: 'fleet@logisud.example', phone: '04 88 91 42 10', mobile: '06 88 91 42 10', type: 'Flotte', taxNumber: 'FR 89 456789123', paymentTerms: '45 jours', currency: 'EUR', website: 'logisud.example', billingAddress: '22 quai Logistique, 13002 Marseille', shippingAddress: 'Dépôt Sud, 13015 Marseille', notes: 'Validation par responsable parc.' },
-  ]);
   const [products, setProducts] = useState<Product[]>([
     { id: 'p1', name: 'Diagnostic électronique', type: 'Service', unit: 'forfait', unitPrice: 89, taxRate: 20 },
     { id: 'p2', name: "Main-d'oeuvre mécanique", type: 'Service', unit: 'heure', unitPrice: 72, taxRate: 20 },
     { id: 'p3', name: 'Plaquettes de frein', type: 'Produit', unit: 'jeu', unitPrice: 64, taxRate: 20 },
   ]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    { id: 'v1', plate: 'AB-482-KL', customerId: 'c1', model: 'Renault Master', mileage: 182400, status: 'Diagnostic' },
-    { id: 'v2', plate: 'GH-219-TQ', customerId: 'c2', model: 'Peugeot 308', mileage: 73120, status: 'En atelier' },
-    { id: 'v3', plate: 'PT-902-RS', customerId: 'c3', model: 'Mercedes Vito', mileage: 241850, status: 'Prêt' },
-  ]);
-  const [quotes, setQuotes] = useState<Quote[]>([
-    { id: 'q1', number: 'DEV-2026-0041', customerId: 'c1', vehicleId: 'v1', status: 'Envoyé', lines: [{ productId: 'p1', quantity: 1, unitPrice: 89, taxRate: 20 }, { productId: 'p3', quantity: 2, unitPrice: 64, taxRate: 20 }], issueDate: '2026-05-08', validUntil: '2026-06-08', notes: '' },
-    { id: 'q2', number: 'DEV-2026-0042', customerId: 'c3', vehicleId: 'v3', status: 'Brouillon', lines: [{ productId: 'p2', quantity: 8, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-12', validUntil: '2026-06-12', notes: 'Main-d\'oeuvre en attente de confirmation des pièces.' },
-  ]);
-  const [invoices, setInvoices] = useState<Invoice[]>([
-    { id: 'f1', number: 'FAC-2026-0098', customerId: 'c2', vehicleId: 'v2', paid: 389, status: 'Payée', lines: [{ productId: 'p2', quantity: 4.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-01', dueDate: '2026-05-31' },
-    { id: 'f2', number: 'FAC-2026-0099', customerId: 'c1', vehicleId: 'v1', paid: 250, status: 'Acompte', lines: [{ productId: 'p1', quantity: 1, unitPrice: 89, taxRate: 20 }, { productId: 'p3', quantity: 2, unitPrice: 64, taxRate: 20 }], issueDate: '2026-05-10', dueDate: '2026-06-10', notes: 'Acompte de 250 EUR recu le 13 mai.' },
-  ]);
-  const [payments, setPayments] = useState<Payment[]>([
-    { id: 'pay1', invoiceId: 'f1', amount: 389, method: 'Carte', date: '2026-05-12' },
-    { id: 'pay2', invoiceId: 'f2', amount: 250, method: 'Virement', date: '2026-05-13' },
-  ]);
   const [templates, setTemplates] = useState<Template[]>([
     { id: 't1', name: 'Garage Central - Lyon', type: 'Facture', activity: 'Garage', status: 'Par défaut', ...defaultTemplate },
-    { id: 't2', name: 'Devis garage simple', type: 'Devis', activity: 'Garage', status: 'Actif', ...defaultTemplate, title: 'Devis', introText: 'Proposition de réparation et entretien véhicule.' },
   ]);
   const [fields, setFields] = useState<CustomField[]>([
     { id: 'cf1', entity: 'Véhicule', label: 'Garantie constructeur', type: 'Date', activity: 'Garage' },
@@ -299,7 +338,7 @@ export function App() {
       { label: 'Factures encaissées', value: money(collected), trend: invoiced > 0 ? `${Math.round((collected / invoiced) * 100)}% du total réglé` : '—', icon: CreditCard },
       { label: 'En attente / impayés', value: money(unpaid), trend: unpaid > 0 ? 'Relances à prévoir' : 'Tout encaissé', icon: Clock },
     ];
-  }, [invoices, products, quotes, vehicles]);
+  }, [invoices, products, vehicles]);
 
   const flash = (message: string) => {
     setToast(message);
@@ -349,7 +388,7 @@ export function App() {
           <CrmPage
             customers={customers}
             vehicles={vehicles}
-            quotes={quotes}
+            quotes={[]}
             invoices={invoices}
             products={products}
             query={query}
@@ -365,7 +404,6 @@ export function App() {
               const removedInvoiceIds = invoices.filter((invoice) => invoice.customerId === customerId).map((invoice) => invoice.id);
               setCustomers((items) => items.filter((item) => item.id !== customerId));
               setVehicles((items) => items.filter((item) => item.customerId !== customerId));
-              setQuotes((items) => items.filter((item) => item.customerId !== customerId));
               setInvoices((items) => items.filter((item) => item.customerId !== customerId));
               setPayments((items) => items.filter((item) => !removedInvoiceIds.includes(item.invoiceId)));
               flash('Client supprimé');
@@ -378,7 +416,7 @@ export function App() {
           <CatalogPage
             customers={customers}
             products={products}
-            quotes={quotes}
+            quotes={[]}
             invoices={invoices}
             query={query}
             onCreate={(product) => {
@@ -391,36 +429,13 @@ export function App() {
             }}
             onDelete={(productId) => {
               setProducts((items) => items.filter((item) => item.id !== productId));
-              setQuotes((items) => items.map((item) => ({ ...item, lines: item.lines.filter((line) => line.productId !== productId) })));
               setInvoices((items) => items.map((item) => ({ ...item, lines: item.lines.filter((line) => line.productId !== productId) })));
               flash('Article supprimé');
             }}
             onOpenEntity={openEntity}
           />
         );
-      case 'quotes':
-        return (
-          <QuotesPage
-            customers={customers}
-            vehicles={vehicles}
-            products={products}
-            templates={templates}
-            quotes={quotes}
-            query={query}
-            companyOverride={companyTemplate}
-            onCreate={(quote) => {
-              setQuotes((items) => [{ id: id('q'), ...quote }, ...items]);
-              flash('Devis créé');
-            }}
-            onUpdate={(quoteId, patch) => {
-              setQuotes((items) => items.map((item) => (item.id === quoteId ? { ...item, ...patch } : item)));
-              flash('Devis modifié');
-            }}
-            onOpenEntity={openEntity}
-            onCreateCustomer={(customer) => { const newId = id('c'); setCustomers((items) => [{ id: newId, ...customer }, ...items]); flash('Client créé'); return newId; }}
-            onCreateProduct={(product) => { const newId = id('p'); setProducts((items) => [{ id: newId, ...product }, ...items]); flash('Article créé'); return newId; }}
-          />
-        );
+
       case 'invoices':
         return (
           <InvoicesPage
@@ -430,7 +445,6 @@ export function App() {
             templates={templates}
             invoices={invoices}
             query={query}
-            startCreate
             companyOverride={companyTemplate}
             onCreate={(invoice) => {
               setInvoices((items) => [{ id: id('f'), ...invoice }, ...items]);
@@ -489,11 +503,7 @@ export function App() {
               setVehicles((items) => items.map((item) => (item.id === vehicleId ? { ...item, ...patch, plate: (patch.plate ?? item.plate).toUpperCase().replace(/\s/g, '') } : item)));
               flash('Véhicule modifié');
             }}
-            onCreateGarageQuote={(vehicle) => {
-              setQuotes((items) => [{ id: id('q'), number: `DEV-2026-${String(items.length + 43).padStart(4, '0')}`, customerId: vehicle.customerId, vehicleId: vehicle.id, status: 'Brouillon', issueDate: new Date().toISOString().slice(0, 10), validUntil: '', notes: `Devis atelier pour ${vehicle.plate} - ${vehicle.model}`, lines: [lineFromProduct(products, products[0]?.id ?? '', 1)] }, ...items]);
-              navigateTo('quotes');
-              flash('Devis garage créé');
-            }}
+            onCreateGarageQuote={() => { navigateTo('invoices'); }}
             onCreateGarageInvoice={(vehicle) => {
               navigateTo('invoices');
               flash('Saisissez le numéro de facture avant validation');
@@ -536,7 +546,7 @@ export function App() {
       case 'help':
         return <HelpPage setActivePage={navigateTo} />;
       default:
-        return <DashboardPage metrics={metrics} selectedActivity={selectedActivity} invoices={invoices} quotes={quotes} products={products} customers={customers} setActivePage={navigateTo} />;
+        return <DashboardPage metrics={metrics} selectedActivity={selectedActivity} invoices={invoices} products={products} customers={customers} setActivePage={navigateTo} />;
     }
   };
 
@@ -590,14 +600,13 @@ export function App() {
         <header className="flex h-16 items-center justify-between gap-4 border-b border-border bg-white px-4 xl:px-6">
           <div className="relative hidden lg:block">
             <select
-              value={company.name}
-              onChange={(e) => setCompany({ ...company, name: e.target.value })}
+              value={activeGarageId}
+              onChange={(e) => { if (e.target.value === '__new__') { setShowNewGarageModal(true); } else { switchGarage(e.target.value); } }}
               className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-foreground shadow-sm ring-1 ring-border appearance-none pr-7"
             >
-              <option>CENTER AUTO PIECE</option>
-              <option>CAP - Dépôt Nord</option>
+              {garages.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              <option value="__new__">+ Nouveau garage...</option>
             </select>
-            <Building2 size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground" style={{display:'none'}} />
             <ChevronDown size={13} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
           <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -608,7 +617,7 @@ export function App() {
             <Button variant="outline" size="icon" title="Notifications" onClick={() => setShowNotifications((open) => !open)}>
               <Bell size={17} />
             </Button>
-            <Button onClick={() => navigateTo('invoices')}>
+            <Button onClick={() => { navigateTo('invoices'); }}>
               <Plus size={17} />
               Nouvelle facture
             </Button>
@@ -618,10 +627,7 @@ export function App() {
                 {invoices.filter((inv) => inv.status !== 'Payée').slice(0, 3).map((inv) => (
                   <NotificationLine key={inv.id} title={inv.number} body={`${customerName(customers, inv.customerId)} — ${money(documentTotal(products, inv.lines) - inv.paid)} restant`} />
                 ))}
-                {quotes.filter((q) => q.status === 'Envoyé').slice(0, 2).map((q) => (
-                  <NotificationLine key={q.id} title={q.number} body={`Devis envoyé à ${customerName(customers, q.customerId)} — en attente`} />
-                ))}
-                {invoices.filter((inv) => inv.status !== 'Payée').length === 0 && quotes.filter((q) => q.status === 'Envoyé').length === 0 && (
+                {invoices.filter((inv) => inv.status !== 'Payée').length === 0 && (
                   <p className="text-sm text-muted-foreground">Aucune alerte en cours.</p>
                 )}
               </Card>
@@ -643,7 +649,7 @@ export function App() {
           customers={customers}
           products={products}
           vehicles={vehicles}
-          quotes={quotes}
+          quotes={[]}
           invoices={invoices}
           payments={payments}
           onBack={backEntity}
@@ -654,6 +660,19 @@ export function App() {
           onUpdatePayment={(paymentId, patch) => { setPayments((items) => items.map((item) => item.id === paymentId ? { ...item, ...patch } : item)); flash('Paiement modifié'); }}
         />
       )}
+      {showNewGarageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowNewGarageModal(false)}>
+          <div className="w-80 rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-4 text-base font-bold">Nouveau garage</h2>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom du garage</label>
+            <Input value={newGarageName} onChange={(e) => setNewGarageName(e.target.value)} placeholder="Mon Garage" onKeyDown={(e) => e.key === 'Enter' && createGarage()} autoFocus />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowNewGarageModal(false)}>Annuler</Button>
+              <Button onClick={createGarage}>Créer</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -662,7 +681,6 @@ function DashboardPage({
   metrics,
   selectedActivity,
   invoices,
-  quotes,
   products,
   customers,
   setActivePage,
@@ -670,7 +688,6 @@ function DashboardPage({
   metrics: Array<{ label: string; value: string; trend: string; icon: typeof FileText }>;
   selectedActivity: ActivityKey;
   invoices: Invoice[];
-  quotes: Quote[];
   products: Product[];
   customers: Customer[];
   setActivePage: (page: Page) => void;
@@ -697,48 +714,26 @@ function DashboardPage({
         ))}
       </section>
 
-      {(invoices.filter((inv) => inv.status !== 'Payée').length > 0 || quotes.filter((q) => q.status === 'Envoyé').length > 0) && (
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          {invoices.filter((inv) => inv.status !== 'Payée').length > 0 && (
-            <Card className="border-amber-200 bg-amber-50 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <AlertCircle size={16} className="text-amber-700" />
-                <span className="font-semibold text-amber-950">
-                  {invoices.filter((inv) => inv.status !== 'Payée').length} facture{invoices.filter((inv) => inv.status !== 'Payée').length !== 1 ? 's' : ''} à encaisser
-                </span>
-              </div>
-              <div className="space-y-2">
-                {invoices.filter((inv) => inv.status !== 'Payée').slice(0, 3).map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-amber-950">{inv.number}</span>
-                    <span className="text-amber-800">{customerName(customers, inv.customerId)}</span>
-                    <span className="font-semibold text-amber-950">{money(documentTotal(products, inv.lines) - inv.paid)}</span>
-                  </div>
-                ))}
-              </div>
-              <button type="button" onClick={() => setActivePage('invoices')} className="mt-3 text-xs font-bold text-amber-900 hover:underline">Voir les factures →</button>
-            </Card>
-          )}
-          {quotes.filter((q) => q.status === 'Envoyé').length > 0 && (
-            <Card className="border-blue-200 bg-blue-50 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Clock size={16} className="text-blue-700" />
-                <span className="font-semibold text-blue-950">
-                  {quotes.filter((q) => q.status === 'Envoyé').length} devis envoyé{quotes.filter((q) => q.status === 'Envoyé').length !== 1 ? 's' : ''} sans réponse
-                </span>
-              </div>
-              <div className="space-y-2">
-                {quotes.filter((q) => q.status === 'Envoyé').slice(0, 3).map((q) => (
-                  <div key={q.id} className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-blue-950">{q.number}</span>
-                    <span className="text-blue-800">{customerName(customers, q.customerId)}</span>
-                    <span className="font-semibold text-blue-950">{money(documentTotal(products, q.lines))}</span>
-                  </div>
-                ))}
-              </div>
-              <button type="button" onClick={() => setActivePage('quotes')} className="mt-3 text-xs font-bold text-blue-900 hover:underline">Voir les devis →</button>
-            </Card>
-          )}
+      {invoices.filter((inv) => inv.status !== 'Payée').length > 0 && (
+        <section>
+          <Card className="border-amber-200 bg-amber-50 p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <AlertCircle size={16} className="text-amber-700" />
+              <span className="font-semibold text-amber-950">
+                {invoices.filter((inv) => inv.status !== 'Payée').length} facture{invoices.filter((inv) => inv.status !== 'Payée').length !== 1 ? 's' : ''} à encaisser
+              </span>
+            </div>
+            <div className="space-y-2">
+              {invoices.filter((inv) => inv.status !== 'Payée').slice(0, 3).map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-amber-950">{inv.number}</span>
+                  <span className="text-amber-800">{customerName(customers, inv.customerId)}</span>
+                  <span className="font-semibold text-amber-950">{money(documentTotal(products, inv.lines) - inv.paid)}</span>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => setActivePage('invoices')} className="mt-3 text-xs font-bold text-amber-900 hover:underline">Voir les factures →</button>
+          </Card>
         </section>
       )}
 
@@ -746,7 +741,7 @@ function DashboardPage({
         <Card className="p-5">
           <SectionTitle title="Derniers documents" action="Voir les factures" onAction={() => setActivePage('invoices')} />
           <div className="space-y-2">
-            {[...invoices, ...quotes].slice(0, 5).map((document) => (
+            {[...invoices].slice(0, 5).map((document) => (
               <div key={document.id} className="flex items-center justify-between rounded-md border border-border bg-white p-3 text-sm">
                 <div>
                   <div className="font-medium">{document.number}</div>
@@ -1866,7 +1861,7 @@ ${invoice.notes ? `<div style="margin-top:18px;font-size:10.5px"><strong>Notes :
 <div style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:10px;font-size:8.5px;line-height:1.5;color:#4b5563"><strong>CGV :</strong> ${template.cgv}</div>
 </body></html>`;
   const win = window.open('', '_blank', 'width=860,height=1100');
-  if (win) { win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 500); }
+  if (win) { win.document.write(html); win.document.close(); win.focus(); }
 }
 
 function exportQuotePDF(quote: Quote, customers: Customer[], vehicles: Vehicle[], products: Product[], template = defaultTemplate) {
@@ -2086,6 +2081,10 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
   const emptyForm = { number: '', customerId: '', vehicleId: '', paid: 0, status: 'À payer', lines: [] as LineItem[], issueDate: todayStr, dueDate: '', notes: '' };
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState<Invoice | null>(null);
+  const [emailInvoice, setEmailInvoice] = useState<Invoice | null>(null);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
   const [statusFilter, setStatusFilter] = useState('Toutes');
   const [showCreate, setShowCreate] = useState(startCreate);
   const [page, setPage] = useState(1);
@@ -2213,25 +2212,25 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                     </tr></thead>
                     <tbody className="divide-y divide-border">
                       {form.lines.map((line, index) => (
-                        <tr key={`${line.productId}-${index}`} className="bg-white transition-colors hover:bg-muted/30">
+                        <tr key={index} className="bg-white transition-colors hover:bg-muted/30">
                           <td className="px-3 py-2.5">
                             <SearchCombobox
                               items={products.map((p) => ({ id: p.id, label: p.name, sublabel: money(p.unitPrice) + ' / ' + p.unit }))}
                               value={line.productId}
                               onChange={(pid) => {
                                 const np = products.find((p) => p.id === pid);
-                                setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, productId: pid, unitPrice: np?.unitPrice ?? it.unitPrice, taxRate: np?.taxRate ?? it.taxRate } : it) });
+                                setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, productId: pid, unitPrice: np?.unitPrice ?? it.unitPrice, taxRate: np?.taxRate ?? it.taxRate } : it) }));
                               }}
                               placeholder="Choisir un article..."
                               actionLabel="Nouvel article"
                               onAction={() => { setProductForm(emptyProductForm); setProductModalOpen(true); }}
                             />
                           </td>
-                          <td className="px-3 py-2.5"><Input type="number" value={line.quantity} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, quantity: Number(e.target.value) } : it) })} /></td>
-                          <td className="px-3 py-2.5"><Input type="number" value={line.unitPrice} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) } : it) })} /></td>
-                          <td className="px-3 py-2.5"><Input type="number" value={line.taxRate} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value) } : it) })} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" min={0} step="any" value={line.quantity} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, quantity: Number(e.target.value) } : it) }))} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" min={0} step="any" value={line.unitPrice} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) } : it) }))} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value) } : it) }))} /></td>
                           <td className="px-3 py-2.5 text-center">
-                            <button type="button" onClick={() => setForm({ ...form, lines: form.lines.filter((_it, i) => i !== index) })} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>
+                            <button type="button" onClick={() => setForm((prev) => ({ ...prev, lines: prev.lines.filter((_it, i) => i !== index) }))} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>
                           </td>
                         </tr>
                       ))}
@@ -2384,6 +2383,12 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                       <div className="flex items-center justify-center gap-1">
                         <button type="button" title="Modifier" onClick={() => setEditing(invoice)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><Edit3 size={14} /></button>
                         <button type="button" title="Exporter PDF" onClick={() => exportInvoicePDF(invoice, customers, vehicles, products, invoiceTemplate)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-blue-50 hover:text-primary"><Download size={14} /></button>
+                        <button type="button" title="Envoyer par email" onClick={() => { const cust = customers.find(c => c.id === invoice.customerId); setEmailInvoice(invoice); setEmailTo(cust?.email ?? ''); setEmailSubject(`Facture ${invoice.number}`); setEmailBody(`Bonjour,
+
+Veuillez trouver ci-joint la facture ${invoice.number}.
+
+Cordialement,
+${companyOverride?.companyName ?? ''}`); }} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-green-50 hover:text-green-700"><Send size={14} /></button>
                       </div>
                     </td>
                   </tr>
@@ -2401,6 +2406,35 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
         onUpdate(editing.id, { number: editing.number, paid: editing.paid, ...patch });
         setEditing(null);
       }} />
+
+      {emailInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEmailInvoice(null)}>
+          <div className="w-[480px] rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-4 text-base font-bold">Envoyer la facture par email</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Destinataire</label>
+                <Input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="client@exemple.fr" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Objet</label>
+                <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Message</label>
+                <textarea className="min-h-[100px] w-full rounded-md border border-input bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-ring" value={emailBody} onChange={(e) => setEmailBody(e.target.value)} />
+              </div>
+              <div className="rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">
+                Le PDF sera joint automatiquement. Configurez l'expéditeur SMTP dans <strong>Paramètres</strong>.
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEmailInvoice(null)}>Annuler</Button>
+              <Button onClick={() => { exportInvoicePDF(emailInvoice, customers, vehicles, products, invoiceTemplate); window.open(`mailto:${emailTo}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`); setEmailInvoice(null); }}><Send size={14} /> Envoyer</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2648,7 +2682,7 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
   );
 }
 
-function SettingsPage({ company, onCompanyChange, selectedActivity, onActivityChange, onSaved }: { company: { name: string; address: string; postalCity: string; phone: string; email: string; legal: string; registration: string; vat: string; cgv: string }; onCompanyChange: (c: typeof company) => void; selectedActivity: ActivityKey; onActivityChange: (activity: ActivityKey) => void; onSaved: () => void }) {
+function SettingsPage({ company, onCompanyChange, selectedActivity, onActivityChange, onSaved }: { company: GarageProfile; onCompanyChange: (c: GarageProfile) => void; selectedActivity: ActivityKey; onActivityChange: (activity: ActivityKey) => void; onSaved: () => void }) {
   const set = (field: string, value: string) => onCompanyChange({ ...company, [field]: value });
   return (
     <PageShell title="Paramètres entreprise" description="Configuration entreprise, informations légales et préférences documentaires.">
@@ -2700,6 +2734,33 @@ function SettingsPage({ company, onCompanyChange, selectedActivity, onActivityCh
                 onChange={(e) => set('cgv', e.target.value)}
                 placeholder="Conditions générales de vente..."
               />
+            </div>
+          </div>
+        </Card>
+        <Card className="p-5 xl:col-span-2 2xl:col-span-1">
+          <SectionTitle title="Configuration email (SMTP)" action="Enregistrer" onAction={onSaved} />
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Serveur SMTP</label>
+                <Input value={company.smtp?.host ?? ''} onChange={(e) => onCompanyChange({ ...company, smtp: { ...company.smtp, host: e.target.value } })} placeholder="smtp.gmail.com" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Port</label>
+                <Input value={company.smtp?.port ?? '587'} onChange={(e) => onCompanyChange({ ...company, smtp: { ...company.smtp, port: e.target.value } })} placeholder="587" />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Expéditeur (From)</label>
+              <Input value={company.smtp?.from ?? ''} onChange={(e) => onCompanyChange({ ...company, smtp: { ...company.smtp, from: e.target.value } })} placeholder="factures@centerautopiece.fr" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Utilisateur SMTP</label>
+              <Input value={company.smtp?.user ?? ''} onChange={(e) => onCompanyChange({ ...company, smtp: { ...company.smtp, user: e.target.value } })} placeholder="votre@email.fr" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Mot de passe SMTP</label>
+              <Input type="password" value={company.smtp?.password ?? ''} onChange={(e) => onCompanyChange({ ...company, smtp: { ...company.smtp, password: e.target.value } })} placeholder="••••••••" />
             </div>
           </div>
         </Card>
@@ -2771,7 +2832,6 @@ function HelpPage({ setActivePage }: { setActivePage: (page: Page) => void }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 border-t border-border bg-white p-4">
-            <Button type="button" variant="outline" onClick={() => setActivePage('quotes')}>Créer un devis</Button>
             <Button type="button" variant="outline" onClick={() => setActivePage('invoices')}>Créer une facture</Button>
             <Button type="button" variant="outline" onClick={() => setActivePage('garage')}>Ouvrir garage</Button>
             <Button type="button" variant="outline" onClick={() => setActivePage('templates')}>Modifier modèle</Button>
