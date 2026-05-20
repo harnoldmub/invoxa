@@ -2023,22 +2023,23 @@ function InvoicePreview({ form, customers, vehicles, products, template = defaul
             {vehicle && <div className="mt-1 text-[9px] text-muted-foreground">Véhicule : {vehicle.plate} — {vehicle.model}</div>}
           </div>
         </div>
-        <div className="overflow-hidden rounded border border-border">
-          <table className="w-full border-collapse">
-            <thead><tr style={{ background: template.primaryColor ?? '#2B4C7E', color: '#fff' }}>
-              <th className="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-widest">Désignation</th>
-              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">TVA</th>
-              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">P.U. HT</th>
-              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">Qté</th>
-              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">Total HT</th>
-              <th className="px-3 py-2 text-right text-[9px] font-bold uppercase tracking-widest">Total TTC</th>
+        <div className="overflow-hidden border border-[#555]" style={{tableLayout:'fixed'}}>
+          <table className="w-full border-collapse" style={{tableLayout:'fixed'}}>
+            <colgroup><col style={{width:'42%'}}/><col style={{width:'10%'}}/><col style={{width:'13%'}}/><col style={{width:'9%'}}/><col style={{width:'13%'}}/><col style={{width:'13%'}}/></colgroup>
+            <thead><tr style={{ borderBottom: '1px solid #555', background: '#fff', color: '#1a2744' }}>
+              <th className="px-2 py-1.5 text-left text-[9px] font-bold border-r border-[#aaa]">Désignation</th>
+              <th className="px-2 py-1.5 text-right text-[9px] font-bold border-r border-[#aaa]">TVA</th>
+              <th className="px-2 py-1.5 text-right text-[9px] font-bold border-r border-[#aaa]">P.U. HT</th>
+              <th className="px-2 py-1.5 text-right text-[9px] font-bold border-r border-[#aaa]">Qté</th>
+              <th className="px-2 py-1.5 text-right text-[9px] font-bold border-r border-[#aaa]">Total HT</th>
+              <th className="px-2 py-1.5 text-right text-[9px] font-bold">Total TTC</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
               {form.lines.map((line, i) => {
                 const product = products.find((p) => p.id === line.productId);
                 const ht = line.quantity * line.unitPrice;
                 const ttc = ht * (1 + line.taxRate / 100);
-                return <tr key={i}><td className="px-3 py-2 text-[10px] border-r border-border">- {product?.name ?? '—'}</td><td className="px-3 py-2 text-right text-[10px] border-r border-border">{line.taxRate}%</td><td className="px-3 py-2 text-right text-[10px] border-r border-border">{money(line.unitPrice)}</td><td className="px-3 py-2 text-right text-[10px] border-r border-border">{line.quantity}</td><td className="px-3 py-2 text-right text-[10px] border-r border-border">{money(ht)}</td><td className="px-3 py-2 text-right text-[10px] font-semibold">{money(ttc)}</td></tr>;
+                return <tr key={i} style={{borderBottom:'1px solid #bbb',color:'#1a2744'}}><td className="px-2 py-1 text-[9.5px] border-r border-[#bbb] truncate">- {product?.name ?? '—'}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.taxRate}%</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(line.unitPrice)}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.quantity}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(ht)}</td><td className="px-2 py-1 text-right text-[9.5px]">{money(ttc)}</td></tr>;
               })}
             </tbody>
           </table>
@@ -2077,7 +2078,7 @@ function SearchCombobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0, openUp: false });
   const selected = items.find((item) => item.id === value);
   const filtered = items.filter(
     (item) =>
@@ -2088,7 +2089,10 @@ function SearchCombobox({
   const openDropdown = () => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setDropPos({ top: rect.bottom, left: rect.left, width: rect.width });
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const dropH = 280;
+      const openUp = spaceBelow < dropH && rect.top > dropH;
+      setDropPos({ top: openUp ? rect.top : rect.bottom, left: rect.left, width: rect.width, openUp });
     }
     setOpen(true);
     setQuery('');
@@ -2109,7 +2113,9 @@ function SearchCombobox({
           <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
           <div
             className="fixed z-[101] min-w-[220px] overflow-hidden rounded-md border border-border bg-white shadow-lg"
-            style={{ top: dropPos.top + 2, left: dropPos.left, width: Math.max(dropPos.width, 240) }}
+            style={dropPos.openUp
+              ? { bottom: window.innerHeight - dropPos.top + 2, left: dropPos.left, width: Math.max(dropPos.width, 240) }
+              : { top: dropPos.top + 2, left: dropPos.left, width: Math.max(dropPos.width, 240) }}
           >
             <div className="border-b border-border p-2">
               <input
@@ -2120,7 +2126,7 @@ function SearchCombobox({
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-            <div className="max-h-52 overflow-auto">
+            <div className="max-h-72 overflow-auto">
               {filtered.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Aucun résultat</div>}
               {filtered.map((item) => (
                 <button
