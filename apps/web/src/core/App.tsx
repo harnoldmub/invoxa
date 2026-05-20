@@ -260,6 +260,7 @@ export function App() {
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [query, setQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [toast, setToast] = useState('Bienvenue');
   const [selectedActivity, setSelectedActivity] = useState<ActivityKey>('garage');
@@ -334,9 +335,9 @@ export function App() {
     const collected = invoices.reduce((sum, invoice) => sum + invoice.paid, 0);
     const unpaid = invoiced - collected;
     return [
-      { label: "Chiffre d'affaires global", value: money(invoiced), trend: `${invoices.length} facture${invoices.length !== 1 ? 's' : ''}`, icon: FileText },
-      { label: 'Factures encaissées', value: money(collected), trend: invoiced > 0 ? `${Math.round((collected / invoiced) * 100)}% du total réglé` : '—', icon: CreditCard },
-      { label: 'En attente / impayés', value: money(unpaid), trend: unpaid > 0 ? 'Relances à prévoir' : 'Tout encaissé', icon: Clock },
+      { label: "Chiffre d'affaires global", value: money(invoiced), trend: `${invoices.length} facture${invoices.length !== 1 ? 's' : ''}`, icon: FileText, filter: 'Toutes' },
+      { label: 'Factures encaissées', value: money(collected), trend: invoiced > 0 ? `${Math.round((collected / invoiced) * 100)}% du total réglé` : '—', icon: CreditCard, filter: 'Payée' },
+      { label: 'En attente / impayés', value: money(unpaid), trend: unpaid > 0 ? 'Relances à prévoir' : 'Tout encaissé', icon: Clock, filter: 'À payer' },
     ];
   }, [invoices, products, vehicles]);
 
@@ -376,8 +377,19 @@ export function App() {
       return [];
     });
   };
+  const [invoiceStartCreate, setInvoiceStartCreate] = useState(false);
+  const [invoiceFilter, setInvoiceFilter] = useState('Toutes');
+
   const navigateTo = (page: Page) => {
     setActivePage(page);
+    setRelationTarget(null);
+    setRelationHistory([]);
+    if (page !== 'invoices') { setInvoiceStartCreate(false); setInvoiceFilter('Toutes'); }
+  };
+  const goToInvoices = (opts?: { create?: boolean; filter?: string }) => {
+    setInvoiceStartCreate(opts?.create ?? false);
+    setInvoiceFilter(opts?.filter ?? 'Toutes');
+    setActivePage('invoices');
     setRelationTarget(null);
     setRelationHistory([]);
   };
@@ -445,6 +457,8 @@ export function App() {
             templates={templates}
             invoices={invoices}
             query={query}
+            startCreate={invoiceStartCreate}
+            initialStatusFilter={invoiceFilter}
             companyOverride={companyTemplate}
             onCreate={(invoice) => {
               setInvoices((items) => [{ id: id('f'), ...invoice }, ...items]);
@@ -546,7 +560,7 @@ export function App() {
       case 'help':
         return <HelpPage setActivePage={navigateTo} />;
       default:
-        return <DashboardPage metrics={metrics} selectedActivity={selectedActivity} invoices={invoices} products={products} customers={customers} setActivePage={navigateTo} />;
+        return <DashboardPage metrics={metrics} selectedActivity={selectedActivity} invoices={invoices} products={products} customers={customers} setActivePage={navigateTo} goToInvoices={goToInvoices} />;
     }
   };
 
@@ -584,7 +598,7 @@ export function App() {
               <Sparkles size={15} />
               {company.name}
             </div>
-            <p className="mt-2 text-xs leading-5 text-white/70">Garage automobile · Factures &amp; devis</p>
+            <p className="mt-2 text-xs leading-5 text-white/70">Garage automobile · Facturation</p>
           </div>
           <button
             type="button"
@@ -609,15 +623,72 @@ export function App() {
             </select>
             <ChevronDown size={13} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Search size={18} className="text-muted-foreground" />
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un client, une facture, un véhicule..." />
+          <div className="relative flex min-w-0 flex-1 items-center gap-2">
+            <Search size={18} className="text-muted-foreground shrink-0" />
+            <div className="relative flex-1">
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} onFocus={() => setShowSearch(true)} onBlur={() => setTimeout(() => setShowSearch(false), 150)} placeholder="Rechercher une facture, un client, un véhicule..." />
+              {showSearch && query.trim().length >= 1 && (() => {
+                const q = query.trim().toLowerCase();
+                const matchedInvoices = invoices.filter((inv) => [inv.number, customerName(customers, inv.customerId), inv.status].join(' ').toLowerCase().includes(q)).slice(0, 4);
+                const matchedCustomers = customers.filter((c) => [c.name, c.email, c.phone, c.companyName].join(' ').toLowerCase().includes(q)).slice(0, 3);
+                const matchedVehicles = vehicles.filter((v) => [v.plate, v.model, customerName(customers, v.customerId)].join(' ').toLowerCase().includes(q)).slice(0, 3);
+                const hasResults = matchedInvoices.length + matchedCustomers.length + matchedVehicles.length > 0;
+                return (
+                  <div className="absolute left-0 top-full z-50 mt-1.5 w-full min-w-[380px] overflow-hidden rounded-xl border border-border bg-white shadow-xl">
+                    {!hasResults && <div className="px-4 py-6 text-center text-sm text-muted-foreground">Aucun résultat pour « {query} »</div>}
+                    {matchedInvoices.length > 0 && (
+                      <div>
+                        <div className="border-b border-border bg-muted/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Factures</div>
+                        {matchedInvoices.map((inv) => (
+                          <button key={inv.id} type="button" onMouseDown={() => { openEntity('invoice', inv.id); setQuery(''); setShowSearch(false); }} className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 text-left">
+                            <span className="font-semibold">{inv.number}</span>
+                            <span className="flex-1 truncate text-muted-foreground">{customerName(customers, inv.customerId)}</span>
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium border ${inv.status === 'Payée' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : inv.status === 'À payer' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-muted text-muted-foreground border-border'}`}>{inv.status}</span>
+                            <span className="shrink-0 font-semibold">{money(documentTotal(products, inv.lines))}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {matchedCustomers.length > 0 && (
+                      <div>
+                        <div className="border-b border-t border-border bg-muted/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Clients</div>
+                        {matchedCustomers.map((c) => (
+                          <button key={c.id} type="button" onMouseDown={() => { openEntity('customer', c.id); setQuery(''); setShowSearch(false); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 text-left">
+                            <Users size={14} className="shrink-0 text-muted-foreground" />
+                            <span className="font-medium">{c.name}</span>
+                            {c.companyName && c.companyName !== c.name && <span className="text-muted-foreground truncate">{c.companyName}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {matchedVehicles.length > 0 && (
+                      <div>
+                        <div className="border-b border-t border-border bg-muted/50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Véhicules</div>
+                        {matchedVehicles.map((v) => (
+                          <button key={v.id} type="button" onMouseDown={() => { openEntity('vehicle', v.id); setQuery(''); setShowSearch(false); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 text-left">
+                            <Car size={14} className="shrink-0 text-muted-foreground" />
+                            <span className="font-semibold">{v.plate}</span>
+                            <span className="text-muted-foreground">{v.model}</span>
+                            <span className="ml-auto text-xs text-muted-foreground">{customerName(customers, v.customerId)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {hasResults && (
+                      <div className="border-t border-border bg-muted/30 px-4 py-2">
+                        <button type="button" onMouseDown={() => { navigateTo('invoices'); }} className="text-xs text-primary hover:underline font-medium">Voir toutes les factures correspondantes →</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
           <div className="relative flex items-center gap-2">
             <Button variant="outline" size="icon" title="Notifications" onClick={() => setShowNotifications((open) => !open)}>
               <Bell size={17} />
             </Button>
-            <Button onClick={() => { navigateTo('invoices'); }}>
+            <Button onClick={() => goToInvoices({ create: true })}>
               <Plus size={17} />
               Nouvelle facture
             </Button>
@@ -684,33 +755,37 @@ function DashboardPage({
   products,
   customers,
   setActivePage,
+  goToInvoices,
 }: {
-  metrics: Array<{ label: string; value: string; trend: string; icon: typeof FileText }>;
+  metrics: Array<{ label: string; value: string; trend: string; icon: typeof FileText; filter?: string }>;
   selectedActivity: ActivityKey;
   invoices: Invoice[];
   products: Product[];
   customers: Customer[];
   setActivePage: (page: Page) => void;
+  goToInvoices: (opts?: { create?: boolean; filter?: string }) => void;
 }) {
   return (
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Tableau de bord</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setActivePage('invoices')}><FileText size={15} /> Nouvelle facture</Button>
+          <Button variant="outline" onClick={() => goToInvoices({ create: true })}><FileText size={15} /> Nouvelle facture</Button>
         </div>
       </div>
 
       <section className="grid grid-cols-2 gap-4 2xl:grid-cols-4">
         {metrics.map((metric) => (
-          <Card key={metric.label} className="p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{metric.label}</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10"><metric.icon size={14} className="text-primary" /></div>
-            </div>
-            <div className="text-2xl font-bold">{metric.value}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{metric.trend}</div>
-          </Card>
+          <button key={metric.label} type="button" onClick={() => metric.filter !== undefined ? goToInvoices({ filter: metric.filter }) : goToInvoices()} className="text-left rounded-xl ring-0 hover:ring-2 hover:ring-primary/30 transition-all">
+            <Card className="h-full p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{metric.label}</span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10"><metric.icon size={14} className="text-primary" /></div>
+              </div>
+              <div className="text-2xl font-bold">{metric.value}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{metric.trend}</div>
+            </Card>
+          </button>
         ))}
       </section>
 
@@ -732,14 +807,14 @@ function DashboardPage({
                 </div>
               ))}
             </div>
-            <button type="button" onClick={() => setActivePage('invoices')} className="mt-3 text-xs font-bold text-amber-900 hover:underline">Voir les factures →</button>
+            <button type="button" onClick={() => goToInvoices({ filter: 'À payer' })} className="mt-3 text-xs font-bold text-amber-900 hover:underline">Voir les factures à encaisser →</button>
           </Card>
         </section>
       )}
 
       <section className="grid grid-cols-1 gap-5 2xl:grid-cols-2">
         <Card className="p-5">
-          <SectionTitle title="Derniers documents" action="Voir les factures" onAction={() => setActivePage('invoices')} />
+          <SectionTitle title="Derniers documents" action="Voir toutes les factures" onAction={() => goToInvoices()} />
           <div className="space-y-2">
             {[...invoices].slice(0, 5).map((document) => (
               <div key={document.id} className="flex items-center justify-between rounded-md border border-border bg-white p-3 text-sm">
@@ -2076,7 +2151,7 @@ function Pagination({ total, page, perPage, onChange }: { total: number; page: n
 }
 
 
-function InvoicesPage({ customers, vehicles, products, templates, invoices, query, startCreate = false, companyOverride, onCreate, onUpdate, onOpenEntity, onCreateCustomer, onCreateProduct }: { customers: Customer[]; vehicles: Vehicle[]; products: Product[]; templates: Template[]; invoices: Invoice[]; query: string; startCreate?: boolean; companyOverride?: Partial<typeof defaultTemplate>; onCreate: (invoice: Omit<Invoice, 'id'>) => void; onUpdate: (id: string, patch: Omit<Invoice, 'id'>) => void; onOpenEntity: (kind: NonNullable<RelationTarget>['kind'], id: string) => void; onCreateCustomer: (customer: Omit<Customer, 'id'>) => string; onCreateProduct: (product: Omit<Product, 'id'>) => string }) {
+function InvoicesPage({ customers, vehicles, products, templates, invoices, query, startCreate = false, initialStatusFilter = 'Toutes', companyOverride, onCreate, onUpdate, onOpenEntity, onCreateCustomer, onCreateProduct }: { customers: Customer[]; vehicles: Vehicle[]; products: Product[]; templates: Template[]; invoices: Invoice[]; query: string; startCreate?: boolean; initialStatusFilter?: string; companyOverride?: Partial<typeof defaultTemplate>; onCreate: (invoice: Omit<Invoice, 'id'>) => void; onUpdate: (id: string, patch: Omit<Invoice, 'id'>) => void; onOpenEntity: (kind: NonNullable<RelationTarget>['kind'], id: string) => void; onCreateCustomer: (customer: Omit<Customer, 'id'>) => string; onCreateProduct: (product: Omit<Product, 'id'>) => string }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const emptyForm = { number: '', customerId: '', vehicleId: '', paid: 0, status: 'À payer', lines: [] as LineItem[], issueDate: todayStr, dueDate: '', notes: '' };
   const [form, setForm] = useState(emptyForm);
@@ -2085,7 +2160,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
   const [emailTo, setEmailTo] = useState('');
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Toutes');
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [showCreate, setShowCreate] = useState(startCreate);
   const [page, setPage] = useState(1);
 

@@ -78,9 +78,9 @@ export function GarageWorkspace({ customers, vehicles, query, onCreateVehicle, o
               <h2 className="mt-1 text-xl font-semibold">Suivi atelier et facturation liée au véhicule</h2>
             </div>
             <div className="grid grid-cols-2 gap-2 xl:flex">
-              <Button variant="outline" className="w-full xl:w-auto" disabled={!selectedVehicle} onClick={() => selectedVehicle && onCreateGarageQuote(selectedVehicle)}>
+              <Button variant="outline" className="w-full xl:w-auto" disabled={!selectedVehicle} onClick={() => selectedVehicle && onCreateGarageInvoice(selectedVehicle)}>
                 <FilePlus2 size={16} />
-                Devis garage
+                Facture liée
               </Button>
               <Button className="w-full xl:w-auto" disabled={!selectedVehicle} onClick={() => selectedVehicle && onCreateGarageInvoice(selectedVehicle)}>
                 <ReceiptText size={16} />
