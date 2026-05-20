@@ -1833,17 +1833,19 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
     const product = products.find((p) => p.id === line.productId);
     const lineHT = line.quantity * line.unitPrice;
     const lineTTC = lineHT * (1 + line.taxRate / 100);
+    const tdBase = 'padding:5px 7px;border-bottom:1px solid #999;border-right:1px solid #aaa';
+    const tdLast = 'padding:5px 7px;border-bottom:1px solid #999';
     return `<tr>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb">- ${product?.name ?? 'Article'}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;text-align:right">${line.taxRate}%</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;text-align:right">${fmtN(line.unitPrice)}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;text-align:right">${line.quantity}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;text-align:right">${fmtN(lineHT)}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtN(lineTTC)}</td>
+      <td style="${tdBase}">- ${product?.name ?? 'Article'}</td>
+      <td style="${tdBase};text-align:right">${line.taxRate}%</td>
+      <td style="${tdBase};text-align:right">${fmtN(line.unitPrice)}</td>
+      <td style="${tdBase};text-align:right">${line.quantity}</td>
+      <td style="${tdBase};text-align:right">${fmtN(lineHT)}</td>
+      <td style="${tdLast};text-align:right">${fmtN(lineTTC)}</td>
     </tr>`;
   }).join('');
   const taxRowsHtml = Object.entries(taxByRate).map(([rate, amount]) =>
-    `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>Total TVA ${rate}%</span><span>${fmtN(amount)}</span></div>`
+    `<tr><td style="padding:3px 6px">Total TVA ${rate}%</td><td style="padding:3px 6px;text-align:right">${fmtN(amount)}</td></tr>`
   ).join('');
   const paymentsHtml = invoice.paid > 0 ? `
 <div style="margin-top:22px">
@@ -1868,76 +1870,98 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
 <head><meta charset="UTF-8"><title>${documentLabel} ${invoice.number}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff;padding:28px 38px;font-size:11px}
-@media print{body{padding:0}@page{margin:14mm 12mm;size:A4}}
+body{font-family:Arial,Helvetica,sans-serif;color:#1a2744;background:#fff;padding:24px 36px 20px;font-size:11px}
+@media print{body{padding:0}@page{margin:12mm 10mm;size:A4}}
+td,th{font-size:11px}
 </style>
 </head>
 <body>
 
-<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
-  <div style="font-size:20px;font-weight:900;letter-spacing:.01em">${template.companyName}</div>
+<!-- HEADER -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px">
+  <div style="font-size:19px;font-weight:900;letter-spacing:.01em;color:#1a2744">${template.companyName}</div>
   <div style="text-align:right">
-    <div style="font-size:18px;font-weight:800">${documentLabel} ${invoice.number}</div>
-    <div style="margin-top:10px;font-size:10.5px;line-height:1.8;text-align:left">
-      <span style="color:#6b7280">Réf. client :</span> <strong>${customer?.taxNumber || customer?.id?.toUpperCase() || '-'}</strong><br>
-      <span style="color:#6b7280">Date facturation :</span> <strong>${invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : today}</strong><br>
-      <span style="color:#6b7280">Date échéance :</span> <strong>${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : today}</strong>
+    <div style="font-size:16px;font-weight:900;color:#1a2744">${documentLabel} ${invoice.number}</div>
+    <div style="margin-top:8px;font-size:10.5px;line-height:1.75;text-align:right;color:#374151">
+      Réf. client : ${customer?.taxNumber || customer?.id?.toUpperCase() || '-'}<br>
+      Date facturation : ${invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : today}<br>
+      Date échéance : ${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : today}
     </div>
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px">
+<!-- EMETTEUR / ADRESSE -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
   <div>
-    <div style="font-weight:700;font-size:10.5px;margin-bottom:4px">Émetteur</div>
-    <div style="border:1px solid #bbb;background:#f5f5f5;padding:10px 12px;font-size:10.5px;line-height:1.65;min-height:88px">
+    <div style="font-size:10.5px;margin-bottom:3px;color:#374151">Émetteur</div>
+    <div style="border:1px solid #999;background:#e8e8e8;padding:9px 11px;font-size:10.5px;line-height:1.7;min-height:82px;color:#1a2744">
       <strong>${template.companyName}</strong><br>${template.companyAddress}<br>${template.companyPostalCity}<br><br>Tél. : ${template.companyPhone}<br>Email: ${template.companyEmail}
     </div>
   </div>
   <div>
-    <div style="font-weight:700;font-size:10.5px;margin-bottom:4px">Adressé à</div>
-    <div style="border:1px solid #bbb;background:#fff;padding:10px 12px;font-size:10.5px;line-height:1.65;min-height:88px">
+    <div style="font-size:10.5px;margin-bottom:3px;color:#374151">Adressé à</div>
+    <div style="border:1px solid #999;background:#fff;padding:9px 11px;font-size:10.5px;line-height:1.7;min-height:82px;color:#1a2744">
       ${customer ? `<strong>${customer.name}</strong>${customer.companyName && customer.companyName !== customer.name ? `<br>${customer.companyName}` : ''}${customer.billingAddress ? `<br>${customer.billingAddress}` : ''}${customer.taxNumber ? `<br>TVA : ${customer.taxNumber}` : ''}` : 'client'}
     </div>
-    ${vehicle ? `<div style="margin-top:5px;font-size:10px;color:#6b7280">Véhicule : ${vehicle.plate} — ${vehicle.model}</div>` : ''}
+    ${vehicle ? `<div style="margin-top:4px;font-size:9.5px;color:#6b7280">Véhicule : ${vehicle.plate} — ${vehicle.model}</div>` : ''}
   </div>
 </div>
 
-<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;font-size:10px;color:#4b5563">
+<!-- CATÉGORIE + MONTANTS -->
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;font-size:10px;color:#374151">
   <span>${template.introText}</span>
   <span>Montants exprimés en Euros</span>
 </div>
 
-<table style="width:100%;border-collapse:collapse;border:1px solid #d1d5db;margin-bottom:14px">
-  <thead><tr style="background:${template.primaryColor};color:#fff">
-    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:left;border-right:1px solid rgba(255,255,255,.2)">Désignation</th>
-    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right;border-right:1px solid rgba(255,255,255,.2)">TVA</th>
-    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right;border-right:1px solid rgba(255,255,255,.2)">P.U. HT</th>
-    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right;border-right:1px solid rgba(255,255,255,.2)">Qté</th>
-    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right;border-right:1px solid rgba(255,255,255,.2)">Total HT</th>
-    <th style="padding:7px 8px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:right">Total TTC</th>
-  </tr></thead>
-  <tbody>${linesHtml}</tbody>
+<!-- TABLEAU ARTICLES avec bordure complète et lignes vides -->
+<table style="width:100%;border-collapse:collapse;border:1px solid #555;margin-bottom:10px;table-layout:fixed">
+  <colgroup>
+    <col style="width:42%">
+    <col style="width:10%">
+    <col style="width:13%">
+    <col style="width:10%">
+    <col style="width:13%">
+    <col style="width:12%">
+  </colgroup>
+  <thead>
+    <tr style="border-bottom:1px solid #555">
+      <th style="padding:5px 7px;font-weight:700;text-align:left;border-right:1px solid #aaa">Désignation</th>
+      <th style="padding:5px 7px;font-weight:700;text-align:right;border-right:1px solid #aaa">TVA</th>
+      <th style="padding:5px 7px;font-weight:700;text-align:right;border-right:1px solid #aaa">P.U. HT</th>
+      <th style="padding:5px 7px;font-weight:700;text-align:right;border-right:1px solid #aaa">Qté</th>
+      <th style="padding:5px 7px;font-weight:700;text-align:right;border-right:1px solid #aaa">Total HT</th>
+      <th style="padding:5px 7px;font-weight:700;text-align:right">Total TTC</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${linesHtml}
+    <tr style="height:220px"><td colspan="6" style="border-right:0"></td></tr>
+  </tbody>
 </table>
 
-<div style="display:flex;gap:32px;justify-content:flex-end">
-  <div style="width:270px;font-size:11px">
-    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>Total HT</span><span>${fmtN(subtotal)}</span></div>
+<!-- TOTAUX -->
+<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+  <table style="border-collapse:collapse;width:300px;font-size:11px">
+    <tr><td style="padding:3px 6px">Total HT</td><td style="padding:3px 6px;text-align:right">${fmtN(subtotal)}</td></tr>
     ${taxRowsHtml}
-    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:2px solid #111827;font-size:12px;font-weight:800"><span>Total TTC</span><span>${fmtN(total)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>Payé</span><span>${fmtN(invoice.paid)}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700"><span>Reste à payer</span><span>${fmtN(remaining)}</span></div>
-  </div>
+    <tr style="font-weight:700"><td style="padding:4px 6px;background:#e0e0e0;border-top:1px solid #999;border-bottom:1px solid #999">Total TTC</td><td style="padding:4px 6px;text-align:right;background:#e0e0e0;border-top:1px solid #999;border-bottom:1px solid #999">${fmtN(total)}</td></tr>
+    <tr><td style="padding:3px 6px">Payé</td><td style="padding:3px 6px;text-align:right">${fmtN(invoice.paid)}</td></tr>
+    <tr><td style="padding:3px 6px;font-weight:700">Reste à payer</td><td style="padding:3px 6px;text-align:right;font-weight:700">${fmtN(remaining)}</td></tr>
+  </table>
 </div>
 
 ${paymentsHtml}
-${invoice.notes ? `<div style="margin-top:14px;font-size:10.5px"><strong>Notes :</strong> ${invoice.notes}</div>` : ''}
+${invoice.notes ? `<div style="margin-top:10px;font-size:10.5px;color:#374151"><strong>Notes :</strong> ${invoice.notes}</div>` : ''}
 
-<div style="margin-top:auto;padding-top:18px"></div>
-<div style="border-top:1px solid #d1d5db;padding-top:7px;font-size:9px;color:#6b7280;display:flex;justify-content:space-between;margin-top:20px">
+<!-- PIED DE PAGE LÉGAL -->
+<div style="border-top:1px solid #bbb;padding-top:5px;font-size:8.5px;color:#555;display:flex;justify-content:space-between;margin-top:14px">
   <span>${template.companyLegal}<br>${template.companyRegistration}</span>
-  <span>1/1</span>
+  <span style="white-space:nowrap">1/1</span>
 </div>
-<div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:8px;font-size:8.5px;line-height:1.5;color:#4b5563"><strong>CGV :</strong> ${template.cgv}</div>
+
+<!-- CGV TOUT EN BAS -->
+<div style="margin-top:10px;font-size:8px;line-height:1.5;color:#444;text-align:justify"><strong>CGV :</strong> ${template.cgv}</div>
+
 </body></html>`;
     const win = window.open('', '_blank', 'width=860,height=1100');
   if (win) { win.document.write(html); win.document.close(); win.focus(); }
@@ -2064,7 +2088,7 @@ function SearchCombobox({
   const openDropdown = () => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setDropPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
+      setDropPos({ top: rect.bottom, left: rect.left, width: rect.width });
     }
     setOpen(true);
     setQuery('');
@@ -2085,7 +2109,7 @@ function SearchCombobox({
           <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
           <div
             className="fixed z-[101] min-w-[220px] overflow-hidden rounded-md border border-border bg-white shadow-lg"
-            style={{ top: dropPos.top + 4, left: dropPos.left, width: dropPos.width }}
+            style={{ top: dropPos.top + 2, left: dropPos.left, width: Math.max(dropPos.width, 240) }}
           >
             <div className="border-b border-border p-2">
               <input
