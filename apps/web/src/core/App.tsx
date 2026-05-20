@@ -1859,11 +1859,11 @@ body{font-family:Arial,Helvetica,sans-serif;color:#111827;background:#fff;paddin
 
 ${paymentsHtml}
 ${invoice.notes ? `<div style="margin-top:18px;font-size:10.5px"><strong>Notes :</strong> ${invoice.notes}</div>` : ''}
-<div style="margin-top:26px;font-size:9px;line-height:1.45;color:#374151"><strong>CGV :</strong> ${template.cgv}</div>
 <div style="margin-top:20px;border-top:1px solid #d1d5db;padding-top:8px;font-size:9px;color:#6b7280;display:flex;justify-content:space-between">
   <span>${template.companyLegal}<br>${template.companyRegistration}</span>
   <span>1/1</span>
 </div>
+<div style="margin-top:16px;border-top:1px solid #e5e7eb;padding-top:10px;font-size:8.5px;line-height:1.5;color:#4b5563"><strong>CGV :</strong> ${template.cgv}</div>
 </body></html>`;
   const win = window.open('', '_blank', 'width=860,height=1100');
   if (win) { win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 500); }
