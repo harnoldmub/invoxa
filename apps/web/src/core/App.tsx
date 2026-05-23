@@ -18,6 +18,7 @@ import {
   Gauge,
   LayoutDashboard,
   LoaderCircle,
+  Menu,
   Package,
   Palette,
   PanelTop,
@@ -262,6 +263,7 @@ export function App() {
   const [query, setQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [toast, setToast] = useState('Bienvenue');
   const [selectedActivity, setSelectedActivity] = useState<ActivityKey>('garage');
@@ -575,7 +577,7 @@ export function App() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-white xl:w-64">
+      <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-border bg-white xl:w-64">
         <div className="flex h-20 items-center border-b border-border px-5">
           <div className="text-2xl font-black tracking-tight">Invoxa</div>
         </div>
@@ -611,23 +613,23 @@ export function App() {
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between gap-4 border-b border-border bg-white px-4 xl:px-6">
-          <div className="relative hidden lg:block">
+      <main className="flex min-w-0 flex-1 flex-col pb-16 lg:pb-0">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-white px-3 xl:px-6">
+          <div className="relative shrink-0">
             <select
               value={activeGarageId}
               onChange={(e) => { if (e.target.value === '__new__') { setShowNewGarageModal(true); } else { switchGarage(e.target.value); } }}
-              className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-foreground shadow-sm ring-1 ring-border appearance-none pr-7"
+              className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-2 py-2 text-sm font-bold text-foreground shadow-sm ring-1 ring-border appearance-none pr-7 max-w-[130px] sm:max-w-none truncate"
             >
               {garages.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
               <option value="__new__">+ Nouveau garage...</option>
             </select>
             <ChevronDown size={13} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
-          <div className="relative flex min-w-0 flex-1 items-center gap-2">
-            <Search size={18} className="text-muted-foreground shrink-0" />
+          <div className="relative flex min-w-0 flex-1 items-center gap-2 ml-1">
+            <Search size={18} className="text-muted-foreground shrink-0 hidden sm:block" />
             <div className="relative flex-1">
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} onFocus={() => setShowSearch(true)} onBlur={() => setTimeout(() => setShowSearch(false), 150)} placeholder="Rechercher une facture, un client, un véhicule..." />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} onFocus={() => setShowSearch(true)} onBlur={() => setTimeout(() => setShowSearch(false), 150)} placeholder="Recherche..." className="text-base sm:text-sm" />
               {showSearch && query.trim().length >= 1 && (() => {
                 const q = query.trim().toLowerCase();
                 const matchedInvoices = invoices.filter((inv) => [inv.number, customerName(customers, inv.customerId), inv.status].join(' ').toLowerCase().includes(q)).slice(0, 4);
@@ -689,9 +691,9 @@ export function App() {
             <Button variant="outline" size="icon" title="Notifications" onClick={() => setShowNotifications((open) => !open)}>
               <Bell size={17} />
             </Button>
-            <Button onClick={() => goToInvoices({ create: true })}>
-              <Plus size={17} />
-              Nouvelle facture
+            <Button onClick={() => goToInvoices({ create: true })} className="shrink-0 px-3 sm:px-4">
+              <Plus size={17} className="sm:mr-2" />
+              <span className="hidden sm:inline">Nouvelle facture</span>
             </Button>
             {showNotifications && (
               <Card className="absolute right-0 top-12 z-10 w-80 p-4">
@@ -715,6 +717,60 @@ export function App() {
           {renderPage()}
         </div>
       </main>
+
+      {/* Mobile Bottom Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center border-t border-border bg-white lg:hidden">
+        <div className="flex w-full items-center justify-around px-2 pb-1">
+          {nav.slice(0, 4).map((item) => (
+            <button
+              key={item.key}
+              onClick={() => { navigateTo(item.key); setMobileMenuOpen(false); }}
+              className={`flex shrink-0 flex-col items-center justify-center gap-1 w-[20%] rounded-lg px-1 py-2 text-[10px] font-medium transition-colors ${
+                activePage === item.key ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            >
+              <item.icon size={20} className={activePage === item.key ? 'text-primary' : 'text-muted-foreground'} />
+              <span className="truncate w-full text-center">{item.label.split(' ')[0]}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className={`flex shrink-0 flex-col items-center justify-center gap-1 w-[20%] rounded-lg px-1 py-2 text-[10px] font-medium transition-colors ${
+              mobileMenuOpen ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            <Menu size={20} className={mobileMenuOpen ? 'text-primary' : 'text-muted-foreground'} />
+            <span className="truncate w-full text-center">Plus</span>
+          </button>
+        </div>
+      </nav>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-30 flex flex-col justify-end bg-black/40 lg:hidden" onClick={() => setMobileMenuOpen(false)}>
+          <div className="bg-white rounded-t-2xl p-5 pb-24 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6 px-1">
+              <h3 className="text-xl font-bold">Menu</h3>
+              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+                <X size={20} />
+              </Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              {nav.slice(4).map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => { navigateTo(item.key); setMobileMenuOpen(false); }}
+                  className="flex flex-col items-center gap-2 rounded-xl transition-opacity hover:opacity-70"
+                >
+                  <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${activePage === item.key ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                    <item.icon size={24} />
+                  </div>
+                  <span className="text-xs font-medium text-center">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {relationTarget && (
         <DetailOverlay
           target={relationTarget}
@@ -775,7 +831,7 @@ function DashboardPage({
         </div>
       </div>
 
-      <section className="grid grid-cols-2 gap-4 2xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
         {metrics.map((metric) => (
           <button key={metric.label} type="button" onClick={() => metric.filter !== undefined ? goToInvoices({ filter: metric.filter }) : goToInvoices()} className="text-left rounded-xl ring-0 hover:ring-2 hover:ring-primary/30 transition-all">
             <Card className="h-full p-4">
@@ -951,13 +1007,13 @@ function CrmPage({
 
   if (!selectedCustomer) {
     return (
-      <PageShell title="Clients actifs" description="Liste complète des clients avec comptes, contacts et soldes." action={<Button onClick={openCreate}><Plus size={15} /> Nouveau client</Button>}>
+    <PageShell title="Clients actifs" description="Liste complète des clients avec comptes, contacts et soldes." action={<Button onClick={openCreate} className="shrink-0 px-3 sm:px-4"><Plus size={15} className="sm:mr-2" /><span className="hidden sm:inline">Nouveau client</span></Button>}>
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div className="flex items-center gap-2 text-lg font-semibold">Clients actifs <ChevronDown size={18} className="text-primary" /></div>
             <span className="text-sm text-muted-foreground">{filtered.length} résultat{filtered.length !== 1 ? 's' : ''}</span>
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full min-w-[1120px] border-collapse text-sm">
               <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
                 <tr>
@@ -988,6 +1044,30 @@ function CrmPage({
               </tbody>
             </table>
           </div>
+
+          <div className="flex flex-col md:hidden divide-y divide-border">
+            {filtered.slice((page - 1) * perPage, page * perPage).map((customer) => (
+              <div key={customer.id} className="flex flex-col p-4 gap-3 bg-white">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">{customer.name}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>{customer.companyName || customer.type}</span>
+                  <span>{customer.phone || customer.mobile || customer.email || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">Solde: </span>
+                    <span className="font-bold text-sm text-foreground">{money(customerDue(customer.id))}</span>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedCustomerId(customer.id); setActiveTab('overview'); }}>
+                    Voir dossier
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {filtered.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">Aucun client trouvé.</div>}
+          </div>
           <Pagination total={filtered.length} page={page} perPage={perPage} onChange={setPage} />
         </Card>
         <EditDialog title={editing ? 'Modifier le client' : 'Nouveau client'} open={modalOpen} onClose={closeModal} onSubmit={handleSubmit}>
@@ -998,9 +1078,9 @@ function CrmPage({
   }
 
   return (
-    <PageShell title="Clients" description="Vue relationnelle des clients, comptes, transactions et véhicules." action={<Button onClick={openCreate}><Plus size={15} /> Nouveau client</Button>}>
+    <PageShell title="Clients" description="Vue relationnelle des clients, comptes, transactions et véhicules." action={<Button onClick={openCreate} className="shrink-0 px-3 sm:px-4"><Plus size={15} className="sm:mr-2" /><span className="hidden sm:inline">Nouveau client</span></Button>}>
       <div className={`grid min-h-[720px] grid-cols-1 overflow-hidden rounded-lg border border-border bg-white ${selectedCustomer ? '2xl:grid-cols-[360px_1fr]' : ''}`}>
-        <aside className={selectedCustomer ? 'border-r border-border' : ''}>
+        <aside className={selectedCustomer ? 'hidden 2xl:block border-r border-border' : ''}>
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div className="flex items-center gap-1 text-lg font-semibold">Clients actifs <ChevronDown size={18} className="text-primary" /></div>
             <div className="flex gap-2">
@@ -1027,14 +1107,21 @@ function CrmPage({
 
         {selectedCustomer && (
           <section className="min-w-0">
-            <div className="flex items-center justify-between border-b border-border px-6 py-5">
-              <h2 className="text-3xl font-semibold">{selectedCustomer.name}</h2>
+            <div className="flex flex-col gap-4 border-b border-border px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="flex flex-col gap-2">
+                <button type="button" onClick={() => setSelectedCustomerId('')} className="flex 2xl:hidden w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                  <ChevronLeft size={16} /> Retour à la liste
+                </button>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl sm:text-3xl font-semibold truncate pr-2">{selectedCustomer.name}</h2>
+                </div>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" onClick={() => openEdit(selectedCustomer)}>Modifier</Button>
-                <Button variant="outline" size="icon" title="Pièces jointes" onClick={() => setActiveTab('notes')}><FileText size={17} /></Button>
-                <Button onClick={() => setActiveTab('transactions')}>Nouvelle transaction <ChevronDown size={16} /></Button>
+                <Button variant="outline" size="sm" onClick={() => openEdit(selectedCustomer)}>Modifier</Button>
+                <Button variant="outline" size="icon" className="h-9 w-9" title="Pièces jointes" onClick={() => setActiveTab('notes')}><FileText size={17} /></Button>
+                <Button size="sm" onClick={() => setActiveTab('transactions')}>Nouv. transaction <ChevronDown size={16} className="ml-1" /></Button>
                 <div className="relative">
-                  <Button variant="outline" onClick={() => setMoreOpen((open) => !open)}>Plus <ChevronDown size={16} /></Button>
+                  <Button variant="outline" size="sm" onClick={() => setMoreOpen((open) => !open)}>Plus <ChevronDown size={16} className="ml-1" /></Button>
                   {moreOpen && (
                     <ActionMenu>
                       <button type="button" onClick={() => { window.location.href = selectedCustomer.email ? `mailto:${selectedCustomer.email}` : 'mailto:'; setMoreOpen(false); }}>Envoyer un e-mail au client</button>
@@ -1045,17 +1132,18 @@ function CrmPage({
                     </ActionMenu>
                   )}
                 </div>
-                <Button variant="outline" size="icon" onClick={() => setSelectedCustomerId('')} title="Fermer"><X size={20} /></Button>
+                <Button variant="outline" size="icon" className="hidden sm:flex h-9 w-9" onClick={() => setSelectedCustomerId('')} title="Fermer"><X size={20} /></Button>
               </div>
             </div>
-            <div className="flex gap-8 border-b border-border px-6">
+            <div className="flex gap-4 sm:gap-8 border-b border-border px-4 sm:px-6 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <style dangerouslySetInnerHTML={{ __html: `::-webkit-scrollbar { display: none; }` }} />
               {([
                 ['overview', 'Vue d’ensemble'],
                 ['notes', 'Commentaires'],
                 ['transactions', 'Transactions'],
                 ['statement', 'Relevé'],
               ] as Array<[typeof activeTab, string]>).map(([key, label]) => (
-                <button key={key} type="button" onClick={() => setActiveTab(key)} className={`border-b-3 px-0 py-4 text-sm font-semibold ${activeTab === key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                <button key={key} type="button" onClick={() => setActiveTab(key)} className={`shrink-0 border-b-3 px-0 py-4 text-sm font-semibold whitespace-nowrap ${activeTab === key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                   {label}
                 </button>
               ))}
@@ -1109,14 +1197,16 @@ function CrmPage({
 
                   <Card className="overflow-hidden">
                     <div className="px-5 py-4 text-lg font-semibold">Comptes clients</div>
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted text-xs uppercase text-muted-foreground">
-                        <tr><th className="px-5 py-3 text-left">Devise</th><th className="px-5 py-3 text-right">Créances impayées</th><th className="px-5 py-3 text-right">Crédits inutilisés</th></tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-t border-border"><td className="px-5 py-4">EUR - Euro</td><td className="px-5 py-4 text-right font-semibold text-primary">{money(unpaid)}</td><td className="px-5 py-4 text-right">{money(credits)}</td></tr>
-                      </tbody>
-                    </table>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted text-xs uppercase text-muted-foreground">
+                          <tr><th className="px-5 py-3 text-left whitespace-nowrap">Créances impayées</th><th className="px-5 py-3 text-right whitespace-nowrap">Crédits inutilisés</th></tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t border-border"><td className="px-5 py-4 text-left font-semibold text-primary whitespace-nowrap">{money(unpaid)}</td><td className="px-5 py-4 text-right whitespace-nowrap">{money(credits)}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </Card>
 
                   <Card className="p-5">
@@ -1127,11 +1217,11 @@ function CrmPage({
                       </div>
                       <div className="text-sm text-primary">6 derniers mois</div>
                     </div>
-                    <div className="mt-6 flex h-40 items-end gap-8 border-b border-border px-8">
+                    <div className="mt-6 flex h-40 items-end gap-1 sm:gap-8 border-b border-border px-1 sm:px-8">
                       {monthlyBars.map((height, index) => (
                         <div key={index} className="flex flex-1 flex-col items-center gap-2">
-                          <div className="w-10 rounded-t bg-lime-300" style={{ height: `${Math.max(10, height * 150)}px` }} />
-                          <span className="text-xs text-muted-foreground">{['nov.', 'déc.', 'janv.', 'févr.', 'mars', 'avr.'][index]}</span>
+                          <div className="w-full max-w-[40px] rounded-t bg-lime-300" style={{ height: `${Math.max(10, height * 150)}px` }} />
+                          <span className="text-[10px] sm:text-xs text-muted-foreground">{['nov.', 'déc.', 'janv.', 'févr.', 'mars', 'avr.'][index]}</span>
                         </div>
                       ))}
                     </div>
@@ -1268,10 +1358,10 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
   return (
     <PageShell title="Articles actifs" description="Catalogue clair des prestations, pièces et forfaits utilisés dans les documents.">
       <div className={`grid min-h-[760px] overflow-hidden rounded-lg border border-border bg-white ${selectedProduct ? '2xl:grid-cols-[420px_1fr]' : ''}`}>
-        <aside className={selectedProduct ? 'border-r border-border' : ''}>
+        <aside className={selectedProduct ? 'hidden 2xl:block border-r border-border' : ''}>
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <div className="flex items-center gap-1 text-lg font-semibold">Articles actifs <ChevronDown size={18} className="text-primary" /></div>
-            <div className="flex gap-2">
+            <div className="hidden sm:flex items-center gap-1 text-lg font-semibold">Articles actifs <ChevronDown size={18} className="text-primary" /></div>
+            <div className="flex gap-2 w-full sm:w-auto justify-end">
               <Button size="icon" onClick={openCreate} title="Nouvel article"><Plus size={18} /></Button>
               <Button size="icon" variant="outline" onClick={() => setMoreOpen((open) => !open)} title="Actions"><Settings size={17} /></Button>
             </div>
@@ -1280,8 +1370,8 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
             {filtered.slice((page - 1) * perPage, page * perPage).map((product) => {
               const rowInactive = inactiveIds.includes(product.id);
               return (
-                <button key={product.id} type="button" onClick={() => { setSelectedProductId(product.id); setActiveTab('overview'); }} className={`grid w-full grid-cols-[auto_1fr_auto] items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-muted/70 ${selectedProductId === product.id ? 'bg-accent/60' : ''}`}>
-                  <input type="checkbox" className="mt-1 h-4 w-4 rounded border-border" onClick={(event) => event.stopPropagation()} />
+                <button key={product.id} type="button" onClick={() => { setSelectedProductId(product.id); setActiveTab('overview'); }} className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-muted/70 ${selectedProductId === product.id ? 'bg-accent/60' : ''}`}>
+                  <input type="checkbox" className="h-4 w-4 rounded border-border" onClick={(event) => event.stopPropagation()} />
                   <div className="min-w-0">
                     <div className="truncate font-semibold">{product.name}</div>
                     <div className="mt-1 text-xs text-muted-foreground">{product.type} · {product.unit}{rowInactive ? ' · Inactif' : ''}</div>
@@ -1295,10 +1385,15 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
         </aside>
 
         {selectedProduct && (
-          <section className="min-w-0">
-            <div className="flex items-center justify-between gap-4 border-b border-border px-6 py-5">
+          <section className="min-w-0 flex flex-col">
+            <div className="2xl:hidden p-3 border-b border-border bg-muted/20">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedProductId('')} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                <ChevronLeft size={16} /> Retour à la liste
+              </Button>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border px-6 py-5">
               <div className="min-w-0">
-                <h2 className="truncate text-3xl font-semibold">{selectedProduct.name}</h2>
+                <h2 className="truncate text-2xl sm:text-3xl font-semibold">{selectedProduct.name}</h2>
                 {isInactive && <div className="mt-2 inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">Inactif</div>}
               </div>
               <div className="relative flex items-center gap-2">
@@ -1713,7 +1808,7 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
         <Button onClick={() => setShowCreate(true)}><Plus size={15} /> Nouveau devis</Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total devisé</span>
@@ -2245,20 +2340,28 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
 
   if (showCreate) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 pb-24 sm:pb-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
             <button type="button" onClick={() => setShowCreate(false)} className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground">
-              <ChevronLeft size={16} /> Factures
+              <ChevronLeft size={16} /> <span className="hidden sm:inline">Factures</span>
             </button>
-            <span className="text-muted-foreground">/</span>
-            <span className="font-medium">Nouvelle facture</span>
+            <span className="hidden sm:inline text-muted-foreground">/</span>
+            <span className="font-medium text-lg sm:text-sm">Nouvelle facture</span>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Desktop Actions */}
+          <div className="hidden sm:flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setShowCreate(false)}>Annuler</Button>
             <Button type="button" variant="secondary" size="sm" onClick={() => handleCreate('Brouillon')}>Brouillon</Button>
-            <Button type="button" size="sm" onClick={() => handleCreate(form.status)}><Send size={14} /> Créer la facture</Button>
+            <Button type="button" size="sm" onClick={() => handleCreate(form.status)}><Send size={14} className="mr-2" /> Créer la facture</Button>
           </div>
+        </div>
+
+        {/* Mobile Sticky Actions */}
+        <div className="fixed bottom-0 left-0 right-0 z-[60] flex sm:hidden items-center gap-2 border-t border-border bg-white p-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+          <Button type="button" variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>Annuler</Button>
+          <Button type="button" variant="secondary" className="flex-1" onClick={() => handleCreate('Brouillon')}>Brouillon</Button>
+          <Button type="button" className="flex-[2]" onClick={() => handleCreate(form.status)}><Send size={14} className="mr-1" /> Créer</Button>
         </div>
 
         <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
@@ -2292,7 +2395,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                   placeholder="Sélectionner un dossier..."
                 />
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-3">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date d'émission <span className="text-red-500">*</span></label>
                   <Input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
@@ -2316,8 +2419,9 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
               </div>
               <div>
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tableau d'articles <span className="text-red-500">*</span></div>
-                <div className="overflow-hidden rounded-lg border border-border">
-                  <table className="w-full text-sm">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full min-w-[700px] text-sm">
                     <thead><tr className="border-b border-border bg-muted">
                       <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Article</th>
                       <th className="w-20 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Qté</th>
@@ -2357,6 +2461,48 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                     </button>
                   </div>
                 </div>
+
+                {/* Mobile Cards */}
+                <div className="flex flex-col gap-3 md:hidden">
+                  {form.lines.map((line, index) => (
+                    <div key={index} className="rounded-lg border border-border bg-white flex flex-col">
+                      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase">Ligne {index + 1}</span>
+                        <button type="button" onClick={() => setForm((prev) => ({ ...prev, lines: prev.lines.filter((_it, i) => i !== index) }))} className="text-muted-foreground transition-colors hover:text-red-600"><Trash2 size={14} /></button>
+                      </div>
+                      <div className="p-3 space-y-3">
+                        <SearchCombobox
+                          items={products.map((p) => ({ id: p.id, label: p.name, sublabel: money(p.unitPrice) + ' / ' + p.unit }))}
+                          value={line.productId}
+                          onChange={(pid) => {
+                            const np = products.find((p) => p.id === pid);
+                            setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, productId: pid, unitPrice: np?.unitPrice ?? it.unitPrice, taxRate: np?.taxRate ?? it.taxRate } : it) }));
+                          }}
+                          placeholder="Choisir un article..."
+                          actionLabel="Nouvel article"
+                          onAction={() => { setProductForm(emptyProductForm); setProductModalOpen(true); }}
+                        />
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Qté</label>
+                            <Input type="number" min={0} step="any" value={line.quantity} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, quantity: Number(e.target.value) } : it) }))} />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Prix HT</label>
+                            <Input type="number" min={0} step="any" value={line.unitPrice} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) } : it) }))} />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">TVA%</label>
+                            <Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value) } : it) }))} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" onClick={() => setForm({ ...form, lines: [...form.lines, { productId: '', quantity: 1, unitPrice: 0, taxRate: 20 }] })} className="w-full mt-1 border-dashed">
+                    <Plus size={14} className="mr-2" /> Ajouter un article
+                  </Button>
+                </div>
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes client</label>
@@ -2365,7 +2511,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
             </div>
           </Card>
 
-          <div className="space-y-3">
+          <div className="hidden lg:block space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aperçu de la facture</p>
               <Button type="button" variant="outline" size="sm" onClick={() => exportInvoicePDF({ id: 'preview', ...form, number: form.number || 'FA2605-3740' }, customers, vehicles, products, invoiceTemplate)}>
@@ -2412,15 +2558,18 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-1 text-2xl font-semibold">Toutes les factures <ChevronDown size={20} className="text-primary" /></h1>
-          <p className="mt-1 text-sm text-muted-foreground">Suivez les échéances, les règlements et les PDF à envoyer.</p>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">Suivez les échéances, les règlements et les PDF à envoyer.</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}><Plus size={15} /> Nouvelle facture</Button>
+        <Button onClick={() => setShowCreate(true)} className="shrink-0 px-3 sm:px-4">
+          <Plus size={15} className="sm:mr-2" />
+          <span className="hidden sm:inline">Nouvelle facture</span>
+        </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total facturé</span>
@@ -2456,18 +2605,18 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
       </div>
 
       <Card className="overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex items-center gap-1">
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2 pb-1">
             {['Toutes', 'À payer', 'Acompte', 'Payée', 'Brouillon'].map((s) => (
               <button key={s} type="button" onClick={() => setStatusFilter(s)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${statusFilter === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+                className={`shrink-0 rounded-md px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium transition-colors ${statusFilter === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
                 {s}
               </button>
             ))}
           </div>
-          <span className="text-sm text-muted-foreground">{filtered.length} résultat{filtered.length !== 1 ? 's' : ''}</span>
+          <span className="text-sm text-muted-foreground shrink-0">{filtered.length} résultat{filtered.length !== 1 ? 's' : ''}</span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full min-w-[980px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-border bg-muted">
@@ -2512,6 +2661,36 @@ ${companyOverride?.companyName ?? ''}`); }} className="flex h-8 w-8 items-center
               {filtered.length === 0 && <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">Aucune facture trouvée.</td></tr>}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View */}
+        <div className="flex flex-col md:hidden divide-y divide-border">
+          {filtered.slice((page - 1) * perPage, page * perPage).map((invoice) => {
+            const tot = documentTotal(products, invoice.lines);
+            const sc = statusPill[invoice.status] ?? 'border border-border bg-muted text-muted-foreground';
+            return (
+              <div key={invoice.id} className="flex flex-col p-4 gap-3 bg-white">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">{invoice.number}</span>
+                  <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-medium ${sc}`}>
+                    {invoice.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{customerName(customers, invoice.customerId)}</span>
+                  <span className="font-bold text-sm">{money(tot)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Émis: {invoice.issueDate ? formatDate(invoice.issueDate) : '-'}</span>
+                  <span>Échéance: {invoice.dueDate ? formatDate(invoice.dueDate) : '-'}</span>
+                </div>
+                <Button variant="outline" size="sm" className="w-full mt-1" onClick={() => onOpenEntity('invoice', invoice.id)}>
+                  Ouvrir la facture
+                </Button>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">Aucune facture trouvée.</div>}
         </div>
         <Pagination total={filtered.length} page={page} perPage={perPage} onChange={setPage} />
       </Card>
@@ -2577,23 +2756,64 @@ function PaymentsPage({ invoices, customers, products, payments, query, onCreate
   });
 
   return (
-    <PageShell title="Encaissements" description="Enregistrez un paiement et la facture est mise à jour automatiquement." action={<Button onClick={openCreate}><Plus size={15} /> Encaisser</Button>}>
-      <DataTable headers={['Facture', 'Client', 'Montant', 'Moyen', 'Date', 'Actions']}>
-        {filtered.slice((page - 1) * perPage, page * perPage).map((payment) => {
-          const invoice = invoices.find((item) => item.id === payment.invoiceId);
-          return (
-            <tr key={payment.id} className="border-t border-border">
-              <td className="px-4 py-3 font-medium">{invoice && <LinkButton onClick={() => onOpenEntity('invoice', invoice.id)}>{invoice.number}</LinkButton>}</td>
-              <td className="px-4 py-3">{invoice ? <LinkButton onClick={() => onOpenEntity('customer', invoice.customerId)}>{customerName(customers, invoice.customerId)}</LinkButton> : '-'}</td>
-              <td className="px-4 py-3 font-semibold">{money(payment.amount)}</td>
-              <td className="px-4 py-3"><Badge>{payment.method}</Badge></td>
-              <td className="px-4 py-3">{payment.date}</td>
-              <td className="px-4 py-3"><EditButton onClick={() => openEdit(payment)} /></td>
-            </tr>
-          );
-        })}
-      </DataTable>
-      <Pagination total={filtered.length} page={page} perPage={perPage} onChange={setPage} />
+    <PageShell title="Encaissements" description="Enregistrez un paiement et la facture est mise à jour automatiquement." action={<Button onClick={openCreate} className="shrink-0 px-3 sm:px-4"><Plus size={15} className="sm:mr-2" /><span className="hidden sm:inline">Encaisser</span></Button>}>
+      <Card className="overflow-hidden">
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full min-w-[860px] border-collapse text-sm">
+            <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                {['Facture', 'Client', 'Montant', 'Moyen', 'Date', 'Actions'].map((header) => (
+                  <th key={header} className="px-4 py-3 font-medium">{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.slice((page - 1) * perPage, page * perPage).map((payment) => {
+                const invoice = invoices.find((item) => item.id === payment.invoiceId);
+                return (
+                  <tr key={payment.id} className="border-t border-border transition-colors hover:bg-muted/30">
+                    <td className="px-4 py-3 font-medium">{invoice && <LinkButton onClick={() => onOpenEntity('invoice', invoice.id)}>{invoice.number}</LinkButton>}</td>
+                    <td className="px-4 py-3">{invoice ? <LinkButton onClick={() => onOpenEntity('customer', invoice.customerId)}>{customerName(customers, invoice.customerId)}</LinkButton> : '-'}</td>
+                    <td className="px-4 py-3 font-semibold">{money(payment.amount)}</td>
+                    <td className="px-4 py-3"><Badge>{payment.method}</Badge></td>
+                    <td className="px-4 py-3">{payment.date}</td>
+                    <td className="px-4 py-3"><EditButton onClick={() => openEdit(payment)} /></td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">Aucun paiement trouvé.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile View */}
+        <div className="flex flex-col md:hidden divide-y divide-border">
+          {filtered.slice((page - 1) * perPage, page * perPage).map((payment) => {
+            const invoice = invoices.find((item) => item.id === payment.invoiceId);
+            return (
+              <div key={payment.id} className="flex flex-col p-4 gap-3 bg-white">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">{invoice?.number || '-'}</span>
+                  <Badge>{payment.method}</Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{invoice ? customerName(customers, invoice.customerId) : '-'}</span>
+                  <span className="font-bold text-foreground">{money(payment.amount)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs mt-1">
+                  <span className="text-muted-foreground">{payment.date}</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => invoice && onOpenEntity('invoice', invoice.id)}>Facture</Button>
+                    <Button variant="outline" size="sm" onClick={() => openEdit(payment)}>Modifier</Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">Aucun paiement trouvé.</div>}
+        </div>
+        <Pagination total={filtered.length} page={page} perPage={perPage} onChange={setPage} />
+      </Card>
       <EditDialog title={editing ? 'Modifier le paiement' : 'Encaisser'} open={modalOpen} onClose={closeModal} onSubmit={handleSubmit}>
         <PaymentFields invoices={invoices} customers={customers} products={products} value={form} onChange={setForm} />
       </EditDialog>
@@ -2746,8 +2966,22 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col bg-[#f7f7f7]">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-white px-5">
-        <h1 className="shrink-0 whitespace-nowrap text-2xl font-semibold">Éditer un modèle</h1>
+      {/* Vue Mobile : Message de blocage */}
+      <div className="flex md:hidden flex-col items-center justify-center h-full p-6 text-center bg-white">
+        <div className="mb-6 rounded-full bg-muted p-4">
+          <PanelTop size={48} className="text-muted-foreground" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Mode ordinateur requis</h2>
+        <p className="text-muted-foreground mb-8">
+          L'éditeur de modèles de factures est réservé aux écrans d'ordinateur pour des raisons de confort et de précision. Veuillez vous connecter depuis un ordinateur pour modifier vos modèles.
+        </p>
+        <Button onClick={onClose} size="lg" className="w-full max-w-[280px]">Retour à l'application</Button>
+      </div>
+
+      {/* Vue Desktop : L'éditeur */}
+      <div className="hidden md:flex flex-col h-full w-full">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-white px-5">
+          <h1 className="shrink-0 whitespace-nowrap text-2xl font-semibold">Éditer un modèle</h1>
         <div className="ml-4 flex min-w-0 items-center gap-3 overflow-x-auto">
           <Select value={selectedTemplateId} onChange={(event) => setSelectedTemplateId(event.target.value)} className="w-52">
             {templates.map((item) => <option key={item.id} value={item.id}>{item.type} · {item.name}</option>)}
@@ -2793,6 +3027,7 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
           </main>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -3324,10 +3559,10 @@ function FieldFields({ value, onChange }: { value: Omit<CustomField, 'id'>; onCh
 function PageShell({ title, description, action, children }: { title: string; description: string; action?: ReactNode; children: ReactNode }) {
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">{title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">{description}</p>
         </div>
         {action}
       </div>
@@ -3376,7 +3611,7 @@ function SectionTitle({ title, action, onAction }: { title: string; action?: str
 
 function ActionMenu({ children }: { children: ReactNode }) {
   return (
-    <div className="absolute right-10 top-12 z-20 min-w-56 overflow-hidden rounded-lg border border-border bg-white py-2 text-sm shadow-xl">
+    <div className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] z-50 min-w-56 overflow-hidden rounded-lg border border-border bg-white py-2 text-sm shadow-xl">
       <div className="[&>button]:block [&>button]:w-full [&>button]:px-4 [&>button]:py-2.5 [&>button]:text-left [&>button]:transition-colors [&>button:hover]:bg-muted">
         {children}
       </div>
@@ -3654,7 +3889,7 @@ function DetailOverlay({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-[min(980px,calc(100vw-224px))] overflow-auto border-l border-border bg-background p-6 shadow-2xl">
+    <div className="fixed inset-y-0 right-0 z-50 w-full lg:w-[min(980px,calc(100vw-224px))] overflow-auto border-l border-border bg-background p-4 sm:p-6 shadow-2xl pb-24 lg:pb-6">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold">{panelTitle}</h2>
