@@ -614,19 +614,19 @@ export function App() {
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col pb-16 lg:pb-0">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-white px-3 xl:px-6">
-          <div className="relative shrink-0">
+        <header className="sticky top-0 z-30 flex flex-wrap sm:h-16 items-center justify-between gap-3 sm:gap-4 border-b border-border bg-white px-3 py-3 sm:py-0 xl:px-6">
+          <div className="relative shrink-0 flex-1 sm:flex-none min-w-0">
             <select
               value={activeGarageId}
               onChange={(e) => { if (e.target.value === '__new__') { setShowNewGarageModal(true); } else { switchGarage(e.target.value); } }}
-              className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-2 py-2 text-sm font-bold text-foreground shadow-sm ring-1 ring-border appearance-none pr-7 max-w-[130px] sm:max-w-none truncate"
+              className="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-foreground shadow-sm ring-1 ring-border appearance-none pr-7 w-full sm:w-auto truncate"
             >
               {garages.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
               <option value="__new__">+ Nouveau garage...</option>
             </select>
-            <ChevronDown size={13} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
-          <div className="relative flex min-w-0 flex-1 items-center gap-2 ml-1">
+          <div className="relative flex min-w-0 w-full sm:flex-1 sm:w-auto items-center gap-2 order-3 sm:order-2">
             <Search size={18} className="text-muted-foreground shrink-0 hidden sm:block" />
             <div className="relative flex-1">
               <Input value={query} onChange={(event) => setQuery(event.target.value)} onFocus={() => setShowSearch(true)} onBlur={() => setTimeout(() => setShowSearch(false), 150)} placeholder="Recherche..." className="text-base sm:text-sm" />
@@ -687,7 +687,7 @@ export function App() {
               })()}
             </div>
           </div>
-          <div className="relative flex items-center gap-2">
+          <div className="relative flex items-center gap-2 order-2 sm:order-3">
             <Button variant="outline" size="icon" title="Notifications" onClick={() => setShowNotifications((open) => !open)}>
               <Bell size={17} />
             </Button>
@@ -1444,24 +1444,26 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
               <div className="space-y-5 p-6">
                 <TransactionSection title="Devis" empty="Il n’y a aucun devis.">
                   {relatedQuotes.map((quote) => (
-                    <tr key={quote.id} className="border-t border-border">
-                      <td className="px-4 py-3">{quote.issueDate ? formatDate(quote.issueDate) : '-'}</td>
-                      <td className="px-4 py-3"><LinkButton onClick={() => onOpenEntity('quote', quote.id)}>{quote.number}</LinkButton></td>
-                      <td className="px-4 py-3">{customerName(customers, quote.customerId)}</td>
-                      <td className="px-4 py-3 text-right font-semibold">{money(documentTotal(products, quote.lines))}</td>
-                      <td className="px-4 py-3"><Badge>{quote.status}</Badge></td>
-                    </tr>
+                    <TransactionRow
+                      key={quote.id}
+                      date={quote.issueDate ? formatDate(quote.issueDate) : '-'}
+                      number={<LinkButton onClick={() => onOpenEntity('quote', quote.id)}>{quote.number}</LinkButton>}
+                      customer={customerName(customers, quote.customerId)}
+                      amount={money(documentTotal(products, quote.lines))}
+                      status={<Badge>{quote.status}</Badge>}
+                    />
                   ))}
                 </TransactionSection>
                 <TransactionSection title="Factures" empty="Aucune facture liée.">
                   {relatedInvoices.map((invoice) => (
-                    <tr key={invoice.id} className="border-t border-border">
-                      <td className="px-4 py-3">{invoice.issueDate ? formatDate(invoice.issueDate) : '-'}</td>
-                      <td className="px-4 py-3"><LinkButton onClick={() => onOpenEntity('invoice', invoice.id)}>{invoice.number}</LinkButton></td>
-                      <td className="px-4 py-3">{customerName(customers, invoice.customerId)}</td>
-                      <td className="px-4 py-3 text-right font-semibold">{money(documentTotal(products, invoice.lines))}</td>
-                      <td className="px-4 py-3"><Badge>{invoice.status}</Badge></td>
-                    </tr>
+                    <TransactionRow
+                      key={invoice.id}
+                      date={invoice.issueDate ? formatDate(invoice.issueDate) : '-'}
+                      number={<LinkButton onClick={() => onOpenEntity('invoice', invoice.id)}>{invoice.number}</LinkButton>}
+                      customer={customerName(customers, invoice.customerId)}
+                      amount={money(documentTotal(products, invoice.lines))}
+                      status={<Badge>{invoice.status}</Badge>}
+                    />
                   ))}
                 </TransactionSection>
               </div>
@@ -2330,12 +2332,40 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
     Brouillon: 'bg-gray-100 text-gray-600 border border-gray-200',
   };
 
-  const handleCreate = (status: string) => {
+  const handleSave = (status: string) => {
     if (!form.number.trim() || !form.customerId || form.lines.length === 0) return;
     const computedStatus = form.paid >= total ? 'Payée' : form.paid > 0 ? 'Acompte' : status;
-    onCreate({ number: form.number.trim(), customerId: form.customerId, vehicleId: form.vehicleId, paid: form.paid, status: computedStatus, lines: form.lines, issueDate: form.issueDate, dueDate: form.dueDate, notes: form.notes });
+    const patch = { number: form.number.trim(), customerId: form.customerId, vehicleId: form.vehicleId, paid: form.paid, status: computedStatus, lines: form.lines, issueDate: form.issueDate, dueDate: form.dueDate, notes: form.notes };
+    if (editing) {
+      onUpdate(editing.id, patch);
+    } else {
+      onCreate(patch);
+    }
     setForm(emptyForm);
+    setEditing(null);
     setShowCreate(false);
+  };
+
+  const handleCancel = () => {
+    setForm(emptyForm);
+    setEditing(null);
+    setShowCreate(false);
+  };
+
+  const handleEditClick = (invoice: Invoice) => {
+    setForm({
+      number: invoice.number,
+      customerId: invoice.customerId,
+      vehicleId: invoice.vehicleId || '',
+      paid: invoice.paid,
+      status: invoice.status,
+      lines: invoice.lines,
+      issueDate: invoice.issueDate || new Date().toISOString().slice(0, 10),
+      dueDate: invoice.dueDate || '',
+      notes: invoice.notes || '',
+    });
+    setEditing(invoice);
+    setShowCreate(true);
   };
 
   if (showCreate) {
@@ -2347,21 +2377,33 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
               <ChevronLeft size={16} /> <span className="hidden sm:inline">Factures</span>
             </button>
             <span className="hidden sm:inline text-muted-foreground">/</span>
-            <span className="font-medium text-lg sm:text-sm">Nouvelle facture</span>
+            <span className="font-medium text-lg sm:text-sm">{editing ? 'Modifier la facture' : 'Nouvelle facture'}</span>
           </div>
           {/* Desktop Actions */}
           <div className="hidden sm:flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setShowCreate(false)}>Annuler</Button>
-            <Button type="button" variant="secondary" size="sm" onClick={() => handleCreate('Brouillon')}>Brouillon</Button>
-            <Button type="button" size="sm" onClick={() => handleCreate(form.status)}><Send size={14} className="mr-2" /> Créer la facture</Button>
+            <Button type="button" variant="outline" size="sm" onClick={handleCancel}>Annuler</Button>
+            <Button type="button" variant="secondary" size="sm" onClick={() => handleSave('Brouillon')}>Brouillon</Button>
+            <Button type="button" size="sm" onClick={() => handleSave(form.status)}><Send size={14} className="mr-2" /> {editing ? 'Enregistrer' : 'Créer la facture'}</Button>
           </div>
         </div>
 
         {/* Mobile Sticky Actions */}
-        <div className="fixed bottom-0 left-0 right-0 z-[60] flex sm:hidden items-center gap-2 border-t border-border bg-white p-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>Annuler</Button>
-          <Button type="button" variant="secondary" className="flex-1" onClick={() => handleCreate('Brouillon')}>Brouillon</Button>
-          <Button type="button" className="flex-[2]" onClick={() => handleCreate(form.status)}><Send size={14} className="mr-1" /> Créer</Button>
+        <div className="fixed bottom-0 left-0 right-0 z-[60] flex flex-col sm:hidden gap-3 border-t border-border bg-white p-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] pb-5">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+             <div className="flex flex-col">
+               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Total TTC</span>
+               <span className="text-lg font-black text-primary">{money(total)}</span>
+             </div>
+             <Button type="button" variant="outline" size="sm" onClick={() => {
+                const tempInv = { id: editing?.id || id('f'), ...form };
+                exportInvoicePDF(tempInv as Invoice, customers, vehicles, products, invoiceTemplate);
+              }}><Download size={14} className="mr-2" /> Exporter PDF</Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={handleCancel}>Annuler</Button>
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => handleSave('Brouillon')}>Brouillon</Button>
+            <Button type="button" className="flex-[2]" onClick={() => handleSave(form.status)}><Send size={14} className="mr-1" /> {editing ? 'Enregistrer' : 'Créer'}</Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
@@ -2645,7 +2687,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                     <td className="px-4 py-3 text-right font-semibold">{money(tot)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button type="button" title="Modifier" onClick={() => setEditing(invoice)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><Edit3 size={14} /></button>
+                        <button type="button" title="Modifier" onClick={() => handleEditClick(invoice)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><Edit3 size={14} /></button>
                         <button type="button" title="Exporter PDF" onClick={() => exportInvoicePDF(invoice, customers, vehicles, products, invoiceTemplate)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-blue-50 hover:text-primary"><Download size={14} /></button>
                         <button type="button" title="Envoyer par email" onClick={() => { const cust = customers.find(c => c.id === invoice.customerId); setEmailInvoice(invoice); setEmailTo(cust?.email ?? ''); setEmailSubject(`Facture ${invoice.number}`); setEmailBody(`Bonjour,
 
@@ -2684,9 +2726,14 @@ ${companyOverride?.companyName ?? ''}`); }} className="flex h-8 w-8 items-center
                   <span>Émis: {invoice.issueDate ? formatDate(invoice.issueDate) : '-'}</span>
                   <span>Échéance: {invoice.dueDate ? formatDate(invoice.dueDate) : '-'}</span>
                 </div>
-                <Button variant="outline" size="sm" className="w-full mt-1" onClick={() => onOpenEntity('invoice', invoice.id)}>
-                  Ouvrir la facture
-                </Button>
+                <div className="flex items-center gap-2 mt-1">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => onOpenEntity('invoice', invoice.id)}>
+                    Ouvrir la facture
+                  </Button>
+                  <button type="button" title="Modifier" onClick={() => handleEditClick(invoice)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><Edit3 size={14} /></button>
+                  <button type="button" title="Exporter PDF" onClick={() => exportInvoicePDF(invoice, customers, vehicles, products, invoiceTemplate)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-blue-50 hover:text-primary"><Download size={14} /></button>
+                  <button type="button" title="Envoyer par email" onClick={() => { const cust = customers.find(c => c.id === invoice.customerId); setEmailInvoice(invoice); setEmailTo(cust?.email ?? ''); setEmailSubject(`Facture ${invoice.number}`); setEmailBody(`Bonjour,\n\nVeuillez trouver ci-joint la facture ${invoice.number}.\n\nCordialement,\n${companyOverride?.companyName ?? ''}`); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-green-50 hover:text-green-700"><Send size={14} /></button>
+                </div>
               </div>
             );
           })}
@@ -2695,11 +2742,7 @@ ${companyOverride?.companyName ?? ''}`); }} className="flex h-8 w-8 items-center
         <Pagination total={filtered.length} page={page} perPage={perPage} onChange={setPage} />
       </Card>
 
-      <DocumentEditDialog kind="facture" customers={customers} vehicles={vehicles} products={products} document={editing} onClose={() => setEditing(null)} onSave={(patch) => {
-        if (!editing) return;
-        onUpdate(editing.id, { number: editing.number, paid: editing.paid, ...patch });
-        setEditing(null);
-      }} />
+
 
       {emailInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEmailInvoice(null)}>
@@ -3619,6 +3662,39 @@ function ActionMenu({ children }: { children: ReactNode }) {
   );
 }
 
+function TransactionRow({ date, number, customer, amount, status }: { date: string; number: ReactNode; customer: string; amount: ReactNode; status: ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <tr className="flex flex-col border border-border rounded-lg p-0 sm:p-0 sm:table-row sm:border-0 sm:border-t sm:rounded-none bg-white">
+      <td className="flex sm:hidden items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setExpanded(!expanded)}>
+        <div className="flex flex-col">
+          <span className="font-medium text-foreground">{number}</span>
+          <span className="text-muted-foreground text-sm truncate max-w-[150px]">{customer}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="font-semibold text-foreground">{amount}</span>
+          <ChevronDown size={16} className={`text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </div>
+      </td>
+      <td className={`${expanded ? 'flex' : 'hidden'} items-center justify-between sm:table-cell px-3 sm:px-4 py-1.5 sm:py-3 whitespace-nowrap border-t border-border sm:border-0`}>
+        <span className="sm:hidden text-muted-foreground">Date</span><span>{date}</span>
+      </td>
+      <td className="hidden sm:table-cell px-3 sm:px-4 py-1.5 sm:py-3 whitespace-nowrap">
+        {number}
+      </td>
+      <td className="hidden sm:table-cell px-3 sm:px-4 py-1.5 sm:py-3 whitespace-nowrap">
+        {customer}
+      </td>
+      <td className="hidden sm:table-cell px-3 sm:px-4 py-1.5 sm:py-3 text-right font-semibold whitespace-nowrap">
+        {amount}
+      </td>
+      <td className={`${expanded ? 'flex' : 'hidden'} items-center justify-between sm:table-cell px-3 sm:px-4 py-1.5 sm:py-3 pb-3 sm:pb-3 whitespace-nowrap`}>
+        <span className="sm:hidden text-muted-foreground">Statut</span>{status}
+      </td>
+    </tr>
+  );
+}
+
 function TransactionSection({ title, empty, children }: { title: string; empty: string; children: ReactNode }) {
   const hasRows = Children.count(children) > 0;
   return (
@@ -3626,20 +3702,22 @@ function TransactionSection({ title, empty, children }: { title: string; empty: 
       <div className="flex items-center justify-between border-b border-border bg-white px-4 py-3">
         <h3 className="flex items-center gap-2 text-lg font-semibold"><ChevronDown size={18} className="text-primary" />{title}</h3>
       </div>
-      <table className="w-full text-sm">
-        <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-          <tr>
-            <th className="px-4 py-3">Date</th>
-            <th className="px-4 py-3">Numéro</th>
-            <th className="px-4 py-3">Client</th>
-            <th className="px-4 py-3 text-right">Montant</th>
-            <th className="px-4 py-3">Statut</th>
-          </tr>
-        </thead>
-        <tbody>
-          {hasRows ? children : <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">{empty}</td></tr>}
-        </tbody>
-      </table>
+      <div>
+        <table className="w-full text-sm block sm:table">
+          <thead className="hidden sm:table-header-group bg-muted text-left text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3 whitespace-nowrap">Date</th>
+              <th className="px-4 py-3 whitespace-nowrap">Numéro</th>
+              <th className="px-4 py-3 whitespace-nowrap">Client</th>
+              <th className="px-4 py-3 text-right whitespace-nowrap">Montant</th>
+              <th className="px-4 py-3 whitespace-nowrap">Statut</th>
+            </tr>
+          </thead>
+          <tbody className="flex flex-col gap-3 p-3 sm:p-0 sm:table-row-group sm:gap-0 bg-muted/20 sm:bg-transparent">
+            {hasRows ? children : <tr className="flex sm:table-row"><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground w-full">{empty}</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -3981,10 +4059,18 @@ function DocumentDetail({ document, customers, vehicles, products, onOpen }: { d
       ['Statut', document.status],
       ['Total', money(documentTotal(products, document.lines))],
     ]}>
-      <div className="mt-3 flex flex-wrap gap-3 text-sm">
-        <LinkButton onClick={() => onOpen('customer', document.customerId)}>Ouvrir le client</LinkButton>
-        <LinkButton onClick={() => onOpen('vehicle', document.vehicleId)}>Ouvrir le véhicule</LinkButton>
-        {document.lines.map((line) => <LinkButton key={line.productId} onClick={() => onOpen('product', line.productId)}>Ouvrir {productName(products, line.productId)}</LinkButton>)}
+      <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
+        <Button variant="outline" size="sm" className="w-full sm:w-auto justify-start gap-2" onClick={() => onOpen('customer', document.customerId)}>
+          <Users size={14} className="text-muted-foreground" /> Ouvrir le client
+        </Button>
+        <Button variant="outline" size="sm" className="w-full sm:w-auto justify-start gap-2" onClick={() => onOpen('vehicle', document.vehicleId)}>
+          <Car size={14} className="text-muted-foreground" /> Ouvrir le véhicule
+        </Button>
+        {document.lines.map((line) => (
+          <Button key={line.productId} variant="outline" size="sm" className="w-full sm:w-auto justify-start gap-2" onClick={() => onOpen('product', line.productId)}>
+            <Package size={14} className="text-muted-foreground" /> Ouvrir {productName(products, line.productId)}
+          </Button>
+        ))}
       </div>
     </DetailGrid>
   );
@@ -4011,7 +4097,7 @@ function RelationColumn({ title, items, onOpen }: { title: string; items: Array<
     <div className="rounded-md border border-border p-3">
       <div className="mb-2 text-sm font-semibold">{title}</div>
       <div className="space-y-2">
-        {items.length ? items.map((item) => <LinkButton key={item.id} onClick={() => onOpen(item.kind, item.id)}>{item.label}</LinkButton>) : <span className="text-sm text-muted-foreground">Aucun élément</span>}
+        {items.length ? items.map((item) => <div key={item.id}><LinkButton onClick={() => onOpen(item.kind, item.id)}>{item.label}</LinkButton></div>) : <span className="text-sm text-muted-foreground">Aucun élément</span>}
       </div>
     </div>
   );
