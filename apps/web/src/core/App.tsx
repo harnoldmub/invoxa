@@ -3018,7 +3018,7 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
         <p className="text-muted-foreground mb-8">
           L'éditeur de modèles de factures est réservé aux écrans d'ordinateur pour des raisons de confort et de précision. Veuillez vous connecter depuis un ordinateur pour modifier vos modèles.
         </p>
-        <Button onClick={onClose} size="lg" className="w-full max-w-[280px]">Retour à l'application</Button>
+        <Button onClick={onClose} className="w-full max-w-[280px]">Retour à l'application</Button>
       </div>
 
       {/* Vue Desktop : L'éditeur */}
