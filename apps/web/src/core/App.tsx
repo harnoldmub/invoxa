@@ -66,12 +66,13 @@ type Customer = {
   billingAddress: string;
   shippingAddress: string;
   notes: string;
+  reference?: string;
 };
-type Product = { id: string; name: string; type: string; unit: string; unitPrice: number; taxRate: number };
+type Product = { id: string; reference?: string; name: string; type: string; unit: string; unitPrice: number; taxRate: number };
 type Vehicle = { id: string; plate: string; customerId: string; model: string; mileage: number; status: string };
-type LineItem = { productId: string; quantity: number; unitPrice: number; taxRate: number };
+type LineItem = { id: string; productId?: string; reference: string; name: string; quantity: number; unitPrice: number; taxRate: number };
 type Quote = { id: string; number: string; customerId: string; vehicleId: string; status: string; lines: LineItem[]; issueDate?: string; validUntil?: string; notes?: string };
-type Invoice = { id: string; number: string; customerId: string; vehicleId: string; paid: number; status: string; lines: LineItem[]; issueDate?: string; dueDate?: string; notes?: string };
+type Invoice = { id: string; number: string; customerId: string; customerReference?: string; vehicleId: string; paid: number; status: string; paymentMethod?: string; lines: LineItem[]; issueDate?: string; dueDate?: string; paymentDate?: string; notes?: string };
 type Payment = { id: string; invoiceId: string; amount: number; method: string; date: string };
 type Template = {
   id: string;
@@ -124,6 +125,19 @@ const activities = [
 const money = (value: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string) => new Intl.DateTimeFormat('fr-FR').format(new Date(value));
 const id = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+const generateCustomerReference = (customers: Customer[]) => {
+  let maxRef = 0;
+  customers.forEach((c) => {
+    if (c.reference && c.reference.startsWith('DE0')) {
+      const numStr = c.reference.substring(3);
+      const num = parseInt(numStr, 10);
+      if (!isNaN(num) && num > maxRef) {
+        maxRef = num;
+      }
+    }
+  });
+  return `DE0${String(maxRef + 1).padStart(4, '0')}`;
+};
 const matches = (query: string, values: Array<string | number>) => values.join(' ').toLowerCase().includes(query.trim().toLowerCase());
 
 const customerName = (customers: Customer[], idValue: string) => customers.find((customer) => customer.id === idValue)?.name ?? 'Client inconnu';
@@ -134,15 +148,12 @@ const vehicleLabel = (vehicles: Vehicle[], idValue: string) => {
 const productName = (products: Product[], idValue: string) => products.find((product) => product.id === idValue)?.name ?? 'Article inconnu';
 const documentTotal = (products: Product[], lines: LineItem[]) =>
   lines.reduce((sum, line) => {
-    const product = products.find((item) => item.id === line.productId);
-    const unitPrice = line.unitPrice ?? product?.unitPrice ?? 0;
-    const taxRate = line.taxRate ?? product?.taxRate ?? 0;
-    return sum + unitPrice * line.quantity * (1 + taxRate / 100);
+    return sum + line.unitPrice * line.quantity * (1 + line.taxRate / 100);
   }, 0);
-const documentSummary = (products: Product[], lines: LineItem[]) => lines.map((line) => `${line.quantity} x ${productName(products, line.productId)}`).join(', ');
+const documentSummary = (products: Product[], lines: LineItem[]) => lines.map((line) => `${line.quantity} x ${line.name}`).join(', ');
 const lineFromProduct = (products: Product[], productId: string, quantity = 1): LineItem => {
   const product = products.find((item) => item.id === productId);
-  return { productId, quantity, unitPrice: product?.unitPrice ?? 0, taxRate: product?.taxRate ?? 20 };
+  return { id: id('l'), productId, reference: product?.reference || '', name: product?.name || '', quantity, unitPrice: product?.unitPrice ?? 0, taxRate: product?.taxRate ?? 20 };
 };
 const defaultTemplate = {
   title: 'Facture',
@@ -163,10 +174,10 @@ const defaultTemplate = {
   companyPostalCity: '59280 ARMENTIERES',
   companyPhone: '03 20 95 31 98',
   companyEmail: 'cap59280@hotmail.com',
-  companyLegal: 'Société à responsabilité limitée (SARL) - Capital de 4 000 € - SIRET: 84238627800019',
+  companyLegal: 'Société à responsabilité limitée (SARL) - Capital de 4 000 € - SIRET: 84238627800019\nRCS/RM: 842 386 278 R.C.S. Lille - Numéro TVA: FR95842386278',
   companyRegistration: 'RCS/RM: 842 386 278 R.C.S. Lille - Numéro TVA: FR95842386278',
   companyVat: 'FR95842386278',
-  cgv: 'Les marchandises livrées demeurent notre propriété jusqu’au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d’intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d’escompte pour paiement anticipé. Rétraction et politique de remboursement : un achat effectué en magasin est réputé ferme et définitif.',
+  cgv: 'Les marchandises livrées demeurent notre propriété jusqu\'au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d\'intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Un achat effectué en magasin est réputé ferme et définitif. L\'acheteur ne pourra retourner un produit acheté en magasin que si celui-ci a un défaut ou un vice caché qui le rend inutilisable. Dans les autres cas (changement d\'avis, erreur de choix technique, erreur de diagnostic etc...) la société CENTER AUTO PIECES assure une politique commerciale d\'échange ou de remboursement par avoir si les conditions de retours sont intégralement respectées : 1) État du produit neuf et complet, sachet plastique non ouvert 2) Conformité de l\'emballage d\'origine 3) Délai de rétractation de 1 mois (hors pièces électriques et commandes spécifiques de pièces non stockées).',
 };
 
 const templatePreviewData = {
@@ -226,7 +237,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-const defaultCgv = "Les marchandises livrées demeurent notre propriété jusqu’au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d’intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d’escompte pour paiement anticipé. Rétraction et politique de remboursement : un achat effectué en magasin est réputé ferme et définitif.";
+const defaultCgv = "Les marchandises livrées demeurent notre propriété jusqu'au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d'intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Un achat effectué en magasin est réputé ferme et définitif. L'acheteur ne pourra retourner un produit acheté en magasin que si celui-ci a un défaut ou un vice caché qui le rend inutilisable. Dans les autres cas (changement d'avis, erreur de choix technique, erreur de diagnostic etc...) la société CENTER AUTO PIECES assure une politique commerciale d'échange ou de remboursement par avoir si les conditions de retours sont intégralement respectées : 1) État du produit neuf et complet, sachet plastique non ouvert 2) Conformité de l'emballage d'origine 3) Délai de rétractation de 1 mois (hors pièces électriques et commandes spécifiques de pièces non stockées).";
 const defaultSmtp = { host: '', port: '587', user: '', password: '', from: '' };
 
 const initialGarages: GarageProfile[] = [
@@ -236,9 +247,9 @@ const initialGarages: GarageProfile[] = [
 const initialAllData: Record<string, GarageData> = {
   g1: {
     customers: [
-      { id: 'c1', name: 'Martin Services', companyName: 'Martin Services SARL', email: 'contact@martin.example', phone: '06 21 48 90 12', mobile: '06 21 48 90 13', type: 'Entreprise', taxNumber: 'FR 45 123456789', paymentTerms: '30 jours', currency: 'EUR', website: 'martin-services.example', billingAddress: '12 rue des Ateliers, 33000 Bordeaux', shippingAddress: '12 rue des Ateliers, 33000 Bordeaux', notes: 'Client flotte utilitaires.' },
-      { id: 'c2', name: 'Cabinet Dentaire Nova', companyName: 'Cabinet Dentaire Nova', email: 'admin@nova.example', phone: '05 59 11 20 30', mobile: '06 70 10 20 30', type: 'Professionnel', taxNumber: 'FR 31 987654321', paymentTerms: 'Comptant', currency: 'EUR', website: 'nova-dentaire.example', billingAddress: '8 avenue Santé, 64000 Pau', shippingAddress: '8 avenue Santé, 64000 Pau', notes: 'Priorité véhicule de remplacement.' },
-      { id: 'c3', name: 'Logisud', companyName: 'Logisud Transport', email: 'fleet@logisud.example', phone: '04 88 91 42 10', mobile: '06 88 91 42 10', type: 'Flotte', taxNumber: 'FR 89 456789123', paymentTerms: '45 jours', currency: 'EUR', website: 'logisud.example', billingAddress: '22 quai Logistique, 13002 Marseille', shippingAddress: 'Dépôt Sud, 13015 Marseille', notes: 'Validation par responsable parc.' },
+      { id: 'c1', reference: 'DE00001', name: 'Martin Services', companyName: 'Martin Services SARL', email: 'contact@martin.example', phone: '06 21 48 90 12', mobile: '06 21 48 90 13', type: 'Entreprise', taxNumber: 'FR 45 123456789', paymentTerms: '30 jours', currency: 'EUR', website: 'martin-services.example', billingAddress: '12 rue des Ateliers, 33000 Bordeaux', shippingAddress: '12 rue des Ateliers, 33000 Bordeaux', notes: 'Client flotte utilitaires.' },
+      { id: 'c2', reference: 'DE00002', name: 'Cabinet Dentaire Nova', companyName: 'Cabinet Dentaire Nova', email: 'admin@nova.example', phone: '05 59 11 20 30', mobile: '06 70 10 20 30', type: 'Professionnel', taxNumber: 'FR 31 987654321', paymentTerms: 'Comptant', currency: 'EUR', website: 'nova-dentaire.example', billingAddress: '8 avenue Santé, 64000 Pau', shippingAddress: '8 avenue Santé, 64000 Pau', notes: 'Priorité véhicule de remplacement.' },
+      { id: 'c3', reference: 'DE00003', name: 'Logisud', companyName: 'Logisud Transport', email: 'fleet@logisud.example', phone: '04 88 91 42 10', mobile: '06 88 91 42 10', type: 'Flotte', taxNumber: 'FR 89 456789123', paymentTerms: '45 jours', currency: 'EUR', website: 'logisud.example', billingAddress: '22 quai Logistique, 13002 Marseille', shippingAddress: 'Dépôt Sud, 13015 Marseille', notes: 'Validation par responsable parc.' },
     ],
     vehicles: [
       { id: 'v1', plate: 'AB-482-KL', customerId: 'c1', model: 'Renault Master', mileage: 182400, status: 'Diagnostic' },
@@ -246,8 +257,8 @@ const initialAllData: Record<string, GarageData> = {
       { id: 'v3', plate: 'PT-902-RS', customerId: 'c3', model: 'Mercedes Vito', mileage: 241850, status: 'Prêt' },
     ],
     invoices: [
-      { id: 'f1', number: 'FAC-2026-0098', customerId: 'c2', vehicleId: 'v2', paid: 389, status: 'Payée', lines: [{ productId: 'p2', quantity: 4.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-01', dueDate: '2026-05-31' },
-      { id: 'f2', number: 'FAC-2026-0099', customerId: 'c1', vehicleId: 'v1', paid: 250, status: 'Acompte', lines: [{ productId: 'p1', quantity: 1, unitPrice: 89, taxRate: 20 }, { productId: 'p3', quantity: 2, unitPrice: 64, taxRate: 20 }], issueDate: '2026-05-10', dueDate: '2026-06-10', notes: 'Acompte de 250 EUR recu le 13 mai.' },
+      { id: 'f1', number: 'FA2605-7B3A', customerId: 'c2', customerReference: 'DE00002', vehicleId: 'v2', paid: 389, status: 'Payée', paymentMethod: 'Carte', lines: [{ id: 'l1', productId: 'p2', reference: 'REF-8U2M', name: 'Kit de freins', quantity: 4.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-01', dueDate: '2026-05-31' },
+      { id: 'f2', number: 'FA2605-9D4C', customerId: 'c1', customerReference: 'DE00001', vehicleId: 'v1', paid: 250, status: 'Acompte', paymentMethod: 'Virement', lines: [{ id: 'l2', productId: 'p1', reference: 'REF-4X9P', name: 'Vidange complète', quantity: 1, unitPrice: 89, taxRate: 20 }, { id: 'l3', productId: 'p3', reference: 'REF-2K7L', name: 'Filtre à air', quantity: 2, unitPrice: 64, taxRate: 20 }, { id: 'l4', productId: 'p2', reference: 'REF-8U2M', name: "Main-d'oeuvre mécanique", quantity: 1.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-10', dueDate: '2026-06-10', notes: 'Acompte de 250 EUR recu le 13 mai.' },
     ],
     payments: [
       { id: 'pay1', invoiceId: 'f1', amount: 389, method: 'Carte', date: '2026-05-12' },
@@ -311,9 +322,9 @@ export function App() {
   const [relationTarget, setRelationTarget] = useState<RelationTarget>(null);
   const [relationHistory, setRelationHistory] = useState<NonNullable<RelationTarget>[]>([]);
   const [products, setProducts] = useState<Product[]>([
-    { id: 'p1', name: 'Diagnostic électronique', type: 'Service', unit: 'forfait', unitPrice: 89, taxRate: 20 },
-    { id: 'p2', name: "Main-d'oeuvre mécanique", type: 'Service', unit: 'heure', unitPrice: 72, taxRate: 20 },
-    { id: 'p3', name: 'Plaquettes de frein', type: 'Produit', unit: 'jeu', unitPrice: 64, taxRate: 20 },
+    { id: 'p1', reference: 'REF-4X9P', name: 'Diagnostic électronique', type: 'Service', unit: 'forfait', unitPrice: 89, taxRate: 20 },
+    { id: 'p2', reference: 'REF-8U2M', name: "Main-d'oeuvre mécanique", type: 'Service', unit: 'heure', unitPrice: 72, taxRate: 20 },
+    { id: 'p3', reference: 'REF-2K7L', name: 'Plaquettes de frein', type: 'Produit', unit: 'jeu', unitPrice: 64, taxRate: 20 },
   ]);
   const [templates, setTemplates] = useState<Template[]>([
     { id: 't1', name: 'Garage Central - Lyon', type: 'Facture', activity: 'Garage', status: 'Par défaut', ...defaultTemplate },
@@ -408,7 +419,8 @@ export function App() {
             products={products}
             query={query}
             onCreate={(customer) => {
-              setCustomers((items) => [{ id: id('c'), ...customer }, ...items]);
+              const reference = customer.reference || `DE0${(customers.length + 1).toString().padStart(4, '0')}`;
+              setCustomers((items) => [{ id: id('c'), ...customer, reference }, ...items]);
               flash('Client créé');
             }}
             onUpdate={(customerId, patch) => {
@@ -472,7 +484,7 @@ export function App() {
               flash('Facture modifiée');
             }}
             onOpenEntity={openEntity}
-            onCreateCustomer={(customer) => { const newId = id('c'); setCustomers((items) => [{ id: newId, ...customer }, ...items]); flash('Client créé'); return newId; }}
+            onCreateCustomer={(customer) => { const newId = id('c'); const reference = customer.reference || `DE0${(customers.length + 1).toString().padStart(4, '0')}`; setCustomers((items) => [{ id: newId, ...customer, reference }, ...items]); flash('Client créé'); return newId; }}
             onCreateProduct={(product) => { const newId = id('p'); setProducts((items) => [{ id: newId, ...product }, ...items]); flash('Article créé'); return newId; }}
           />
         );
@@ -490,10 +502,10 @@ export function App() {
                 items.map((invoice) =>
                   invoice.id === payment.invoiceId
                     ? {
-                        ...invoice,
-                        paid: Math.min(documentTotal(products, invoice.lines), invoice.paid + payment.amount),
-                        status: invoice.paid + payment.amount >= documentTotal(products, invoice.lines) ? 'Payée' : 'Acompte',
-                      }
+                      ...invoice,
+                      paid: Math.min(documentTotal(products, invoice.lines), invoice.paid + payment.amount),
+                      status: invoice.paid + payment.amount >= documentTotal(products, invoice.lines) ? 'Payée' : 'Acompte',
+                    }
                     : invoice,
                 ),
               );
@@ -586,9 +598,8 @@ export function App() {
             <button
               key={item.key}
               onClick={() => navigateTo(item.key)}
-              className={`flex h-12 w-full items-center gap-3 rounded-xl px-4 text-sm font-bold transition ${
-                activePage === item.key ? 'border border-black bg-white text-black shadow-sm' : 'text-muted-foreground hover:bg-white hover:text-black'
-              }`}
+              className={`flex h-12 w-full items-center gap-3 rounded-xl px-4 text-sm font-bold transition ${activePage === item.key ? 'border border-black bg-white text-black shadow-sm' : 'text-muted-foreground hover:bg-white hover:text-black'
+                }`}
             >
               <item.icon size={17} />
               <span>{item.label}</span>
@@ -725,9 +736,8 @@ export function App() {
             <button
               key={item.key}
               onClick={() => { navigateTo(item.key); setMobileMenuOpen(false); }}
-              className={`flex shrink-0 flex-col items-center justify-center gap-1 w-[20%] rounded-lg px-1 py-2 text-[10px] font-medium transition-colors ${
-                activePage === item.key ? 'text-primary' : 'text-muted-foreground'
-              }`}
+              className={`flex shrink-0 flex-col items-center justify-center gap-1 w-[20%] rounded-lg px-1 py-2 text-[10px] font-medium transition-colors ${activePage === item.key ? 'text-primary' : 'text-muted-foreground'
+                }`}
             >
               <item.icon size={20} className={activePage === item.key ? 'text-primary' : 'text-muted-foreground'} />
               <span className="truncate w-full text-center">{item.label.split(' ')[0]}</span>
@@ -735,9 +745,8 @@ export function App() {
           ))}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className={`flex shrink-0 flex-col items-center justify-center gap-1 w-[20%] rounded-lg px-1 py-2 text-[10px] font-medium transition-colors ${
-              mobileMenuOpen ? 'text-primary' : 'text-muted-foreground'
-            }`}
+            className={`flex shrink-0 flex-col items-center justify-center gap-1 w-[20%] rounded-lg px-1 py-2 text-[10px] font-medium transition-colors ${mobileMenuOpen ? 'text-primary' : 'text-muted-foreground'
+              }`}
           >
             <Menu size={20} className={mobileMenuOpen ? 'text-primary' : 'text-muted-foreground'} />
             <span className="truncate w-full text-center">Plus</span>
@@ -952,10 +961,10 @@ function CrmPage({
       setSelectedCustomerId('');
     }
   }, [filtered, selectedCustomerId]);
-  const openCreate = () => { setEditing(null); setForm(empty); setModalOpen(true); };
-  const openEdit = (c: Customer) => { setEditing(c); setForm({ name: c.name, companyName: c.companyName, email: c.email, phone: c.phone, mobile: c.mobile, type: c.type, taxNumber: c.taxNumber, paymentTerms: c.paymentTerms, currency: c.currency, website: c.website, billingAddress: c.billingAddress, shippingAddress: c.shippingAddress, notes: c.notes }); setModalOpen(true); };
+  const openCreate = () => { setEditing(null); setForm({ ...empty, reference: generateCustomerReference(customers) }); setModalOpen(true); };
+  const openEdit = (c: Customer) => { setEditing(c); setForm({ name: c.name, reference: c.reference, companyName: c.companyName, email: c.email, phone: c.phone, mobile: c.mobile, type: c.type, taxNumber: c.taxNumber, paymentTerms: c.paymentTerms, currency: c.currency, website: c.website, billingAddress: c.billingAddress, shippingAddress: c.shippingAddress, notes: c.notes }); setModalOpen(true); };
   const closeModal = () => setModalOpen(false);
-  const handleSubmit = () => { if (!form.name) return; if (editing) { onUpdate(editing.id, form); } else { onCreate(form); } closeModal(); };
+  const handleSubmit = () => { if (!form.name || !form.reference) return; if (editing) { onUpdate(editing.id, form); } else { onCreate(form); } closeModal(); };
   const selectedCustomer = selectedCustomerId ? customers.find((customer) => customer.id === selectedCustomerId) ?? filtered[0] : undefined;
   const selectedQuotes = selectedCustomer ? quotes.filter((quote) => quote.customerId === selectedCustomer.id) : [];
   const selectedInvoices = selectedCustomer ? invoices.filter((invoice) => invoice.customerId === selectedCustomer.id) : [];
@@ -1007,7 +1016,7 @@ function CrmPage({
 
   if (!selectedCustomer) {
     return (
-    <PageShell title="Clients actifs" description="Liste complète des clients avec comptes, contacts et soldes." action={<Button onClick={openCreate} className="shrink-0 px-3 sm:px-4"><Plus size={15} className="sm:mr-2" /><span className="hidden sm:inline">Nouveau client</span></Button>}>
+      <PageShell title="Clients actifs" description="Liste complète des clients avec comptes, contacts et soldes." action={<Button onClick={openCreate} className="shrink-0 px-3 sm:px-4"><Plus size={15} className="sm:mr-2" /><span className="hidden sm:inline">Nouveau client</span></Button>}>
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div className="flex items-center gap-2 text-lg font-semibold">Clients actifs <ChevronDown size={18} className="text-primary" /></div>
@@ -1315,7 +1324,7 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
     }
   }, [filtered, selectedProductId]);
   const openCreate = () => { setEditing(null); setForm(empty); setModalOpen(true); };
-  const openEdit = (p: Product) => { setEditing(p); setForm({ name: p.name, type: p.type, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate }); setModalOpen(true); };
+  const openEdit = (p: Product) => { setEditing(p); setForm({ name: p.name, reference: p.reference, type: p.type, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate }); setModalOpen(true); };
   const closeModal = () => setModalOpen(false);
   const handleSubmit = () => { if (!form.name) return; if (editing) { onUpdate(editing.id, form); } else { onCreate(form); } closeModal(); };
   const usage = (productId: string) => quotes.filter((quote) => quote.lines.some((line) => line.productId === productId)).length + invoices.filter((invoice) => invoice.lines.some((line) => line.productId === productId)).length;
@@ -1373,10 +1382,10 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
                 <button key={product.id} type="button" onClick={() => { setSelectedProductId(product.id); setActiveTab('overview'); }} className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-muted/70 ${selectedProductId === product.id ? 'bg-accent/60' : ''}`}>
                   <input type="checkbox" className="h-4 w-4 rounded border-border" onClick={(event) => event.stopPropagation()} />
                   <div className="min-w-0">
-                    <div className="truncate font-semibold">{product.name}</div>
+                    <div className="truncate font-semibold">{product.reference ? `${product.reference} - ${product.name}` : product.name}</div>
                     <div className="mt-1 text-xs text-muted-foreground">{product.type} · {product.unit}{rowInactive ? ' · Inactif' : ''}</div>
                   </div>
-                  <div className="font-semibold">{money(product.unitPrice)}</div>
+                  <div className="font-semibold">{money(product.unitPrice * (1 + product.taxRate / 100))} TTC</div>
                 </button>
               );
             })}
@@ -1393,7 +1402,7 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border px-6 py-5">
               <div className="min-w-0">
-                <h2 className="truncate text-2xl sm:text-3xl font-semibold">{selectedProduct.name}</h2>
+                <h2 className="truncate text-2xl sm:text-3xl font-semibold">{selectedProduct.reference ? `${selectedProduct.reference} - ${selectedProduct.name}` : selectedProduct.name}</h2>
                 {isInactive && <div className="mt-2 inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">Inactif</div>}
               </div>
               <div className="relative flex items-center gap-2">
@@ -1430,7 +1439,7 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
                 <div>
                   <h3 className="mb-5 text-lg font-semibold">Informations sur les ventes</h3>
                   <div className="grid max-w-4xl grid-cols-[210px_1fr] gap-y-4 text-sm">
-                    <span className="text-muted-foreground">Prix de vente</span><span className="font-medium">{money(selectedProduct.unitPrice)}</span>
+                    <span className="text-muted-foreground">Prix de vente TTC</span><span className="font-medium">{money(selectedProduct.unitPrice * (1 + selectedProduct.taxRate / 100))}</span>
                     <span className="text-muted-foreground">Compte de vente</span><span className="font-medium">Ventes</span>
                     <span className="text-muted-foreground">Unité d’utilisation</span><span className="font-medium">{selectedProduct.unit}</span>
                     <span className="text-muted-foreground">TVA</span><span className="font-medium">{selectedProduct.taxRate}%</span>
@@ -1502,7 +1511,7 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
   );
 }
 
-function QuotePreview({ form, customers, vehicles, products }: { form: { customerId: string; vehicleId: string; lines: LineItem[]; status: string; issueDate?: string; validUntil?: string; notes?: string; number?: string }; customers: Customer[]; vehicles: Vehicle[]; products: Product[] }) {
+function QuotePreview({ form, customers, vehicles, products }: { form: { customerId: string; vehicleId: string; lines: LineItem[]; status: string; issueDate?: string; validUntil?: string; notes?: string; number?: string; customerReference?: string }; customers: Customer[]; vehicles: Vehicle[]; products: Product[] }) {
   const customer = customers.find((c) => c.id === form.customerId);
   const vehicle = vehicles.find((v) => v.id === form.vehicleId);
   const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
@@ -1597,12 +1606,12 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
   const perPage = 10;
 
   // Inline client modal
-  const emptyClientForm = { name: '', companyName: '', email: '', phone: '', mobile: '', type: 'Particulier', taxNumber: '', paymentTerms: 'Comptant', currency: 'EUR', website: '', billingAddress: '', shippingAddress: '', notes: '' };
+  const emptyClientForm = { reference: '', name: '', companyName: '', email: '', phone: '', mobile: '', type: 'Particulier', taxNumber: '', paymentTerms: 'Comptant', currency: 'EUR', website: '', billingAddress: '', shippingAddress: '', notes: '' };
   const [clientModalOpen, setClientModalOpen] = useState(false);
   const [clientForm, setClientForm] = useState(emptyClientForm);
 
   // Inline product modal
-  const emptyProductForm = { name: '', type: 'Service', unit: 'forfait', unitPrice: 0, taxRate: 20 };
+  const emptyProductForm = { reference: '', name: '', type: 'Service', unit: 'forfait', unitPrice: 0, taxRate: 20 };
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [productForm, setProductForm] = useState(emptyProductForm);
 
@@ -1631,7 +1640,7 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
     Brouillon: 'bg-gray-100 text-gray-600 border border-gray-200',
   };
 
-  const openClientModal = () => { setClientForm(emptyClientForm); setClientModalOpen(true); };
+  const openClientModal = () => { setClientForm({ ...emptyClientForm, reference: generateCustomerReference(customers) }); setClientModalOpen(true); };
   const openProductModal = () => { setProductForm(emptyProductForm); setProductModalOpen(true); };
 
   const handleCreate = (status: string) => {
@@ -1709,31 +1718,38 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
                 <div className="overflow-hidden rounded-lg border border-border">
                   <table className="w-full text-sm">
                     <thead><tr className="border-b border-border bg-muted">
+                      <th className="w-32 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Identifiant</th>
                       <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Article</th>
                       <th className="w-20 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Qté</th>
-                      <th className="w-28 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix HT</th>
+                      <th className="w-28 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix TTC</th>
                       <th className="w-20 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA%</th>
                       <th className="w-8 px-3 py-2.5"></th>
                     </tr></thead>
                     <tbody className="divide-y divide-border">
                       {form.lines.map((line, index) => (
                         <tr key={`${line.productId}-${index}`} className="bg-white transition-colors hover:bg-muted/30">
+                          <td className="px-3 py-2.5"><Input value={line.reference || ''} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, reference: e.target.value } : it) })} placeholder="REF..." /></td>
                           <td className="px-3 py-2.5">
                             <SearchCombobox
-                              items={products.map((p) => ({ id: p.id, label: p.name, sublabel: money(p.unitPrice) + ' / ' + p.unit }))}
-                              value={line.productId}
+                              items={products.map((p) => ({ id: p.id, label: p.name, sublabel: p.reference ? `[${p.reference}] ${money(p.unitPrice * (1 + p.taxRate / 100))} TTC` : `${money(p.unitPrice * (1 + p.taxRate / 100))} TTC` }))}
+                              value={line.productId || ''}
                               onChange={(pid) => {
                                 const np = products.find((p) => p.id === pid);
-                                setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, productId: pid, unitPrice: np?.unitPrice ?? it.unitPrice, taxRate: np?.taxRate ?? it.taxRate } : it) });
+                                setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, productId: pid, name: np?.name ?? it.name, reference: np?.reference ?? it.reference, unitPrice: np?.unitPrice ?? it.unitPrice, taxRate: np?.taxRate ?? it.taxRate } : it) });
                               }}
                               placeholder="Choisir un article..."
                               actionLabel="Nouvel article"
                               onAction={openProductModal}
                             />
+                            {(!line.productId || line.name !== products.find(p => p.id === line.productId)?.name) && (
+                              <div className="mt-2">
+                                <Input value={line.name || ''} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, name: e.target.value } : it) })} placeholder="Nom de l'article libre..." />
+                              </div>
+                            )}
                           </td>
                           <td className="px-3 py-2.5"><Input type="number" value={line.quantity} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, quantity: Number(e.target.value) } : it) })} /></td>
-                          <td className="px-3 py-2.5"><Input type="number" value={line.unitPrice} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) } : it) })} /></td>
-                          <td className="px-3 py-2.5"><Input type="number" value={line.taxRate} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value) } : it) })} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" min={0} step="any" value={Math.round(line.unitPrice * (1 + line.taxRate / 100) * 100) / 100} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) / (1 + it.taxRate / 100) } : it) })} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" value={line.taxRate} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value), unitPrice: (it.unitPrice * (1 + it.taxRate / 100)) / (1 + Number(e.target.value) / 100) } : it) })} /></td>
                           <td className="px-3 py-2.5 text-center">
                             <button type="button" onClick={() => setForm({ ...form, lines: form.lines.filter((_it, i) => i !== index) })} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>
                           </td>
@@ -1742,7 +1758,7 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
                     </tbody>
                   </table>
                   <div className="border-t border-border bg-white px-3 py-2.5">
-                    <button type="button" onClick={() => setForm({ ...form, lines: [...form.lines, { productId: '', quantity: 1, unitPrice: 0, taxRate: 20 }] })} className="flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
+                    <button type="button" onClick={() => setForm({ ...form, lines: [...form.lines, { id: id('l'), productId: '', reference: '', name: '', quantity: 1, unitPrice: 0, taxRate: 20 }] })} className="flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
                       <Plus size={14} /> Ajouter un article
                     </button>
                   </div>
@@ -1768,12 +1784,13 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
 
         {/* Inline modals */}
         <EditDialog title="Nouveau client" open={clientModalOpen} onClose={() => setClientModalOpen(false)} onSubmit={() => {
-          if (!clientForm.name) return;
+          if (!clientForm.name || !clientForm.reference) return;
           const newId = onCreateCustomer(clientForm);
           setForm((f) => ({ ...f, customerId: newId }));
           setClientModalOpen(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Référence client <span className="text-red-500">*</span></label><Input value={clientForm.reference || ''} onChange={(e) => setClientForm({ ...clientForm, reference: e.target.value })} placeholder="DE00001" /></div>
             <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} placeholder="Martin Services" /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Société</label><Input value={clientForm.companyName} onChange={(e) => setClientForm({ ...clientForm, companyName: e.target.value })} /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</label><Input type="email" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} /></div>
@@ -1785,15 +1802,16 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
         <EditDialog title="Nouvel article" open={productModalOpen} onClose={() => setProductModalOpen(false)} onSubmit={() => {
           if (!productForm.name) return;
           const newId = onCreateProduct(productForm);
-          setForm((f) => ({ ...f, lines: [...f.lines, { productId: newId, quantity: 1, unitPrice: productForm.unitPrice, taxRate: productForm.taxRate }] }));
+          setForm((f) => ({ ...f, lines: [...f.lines, { id: id('l'), productId: newId, reference: productForm.reference || '', name: productForm.name, quantity: 1, unitPrice: productForm.unitPrice, taxRate: productForm.taxRate }] }));
           setProductModalOpen(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Référence / Identifiant</label><Input value={productForm.reference || ''} onChange={(e) => setProductForm({ ...productForm, reference: e.target.value })} placeholder="REF-123" /></div>
             <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} placeholder="Main-d'oeuvre" /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</label><Select value={productForm.type} onChange={(e) => setProductForm({ ...productForm, type: e.target.value })}><option>Service</option><option>Produit</option><option>Forfait</option></Select></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unité</label><Input value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} /></div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix HT (€)</label><Input type="number" value={productForm.unitPrice} onChange={(e) => setProductForm({ ...productForm, unitPrice: Number(e.target.value) })} /></div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA (%)</label><Input type="number" value={productForm.taxRate} onChange={(e) => setProductForm({ ...productForm, taxRate: Number(e.target.value) })} /></div>
+            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix TTC (€)</label><Input type="number" min={0} step="any" value={Math.round(productForm.unitPrice * (1 + productForm.taxRate / 100) * 100) / 100} onChange={(e) => setProductForm({ ...productForm, unitPrice: Number(e.target.value) / (1 + productForm.taxRate / 100) })} /></div>
+            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA (%)</label><Input type="number" value={productForm.taxRate} onChange={(e) => setProductForm({ ...productForm, taxRate: Number(e.target.value), unitPrice: (productForm.unitPrice * (1 + productForm.taxRate / 100)) / (1 + Number(e.target.value) / 100) })} /></div>
           </div>
         </EditDialog>
       </div>
@@ -1926,14 +1944,18 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
   const total = subtotal + tax;
   const remaining = Math.max(0, total - invoice.paid);
   const documentLabel = template.type === 'Devis' ? 'Devis' : 'Facture';
-  const linesHtml = invoice.lines.map((line) => {
+  const linesHtml = invoice.lines.map((line, index) => {
     const product = products.find((p) => p.id === line.productId);
     const lineHT = line.quantity * line.unitPrice;
     const lineTTC = lineHT * (1 + line.taxRate / 100);
-    const tdBase = 'padding:5px 7px;border-bottom:1px solid #999;border-right:1px solid #aaa';
-    const tdLast = 'padding:5px 7px;border-bottom:1px solid #999';
+    const isLast = index === invoice.lines.length - 1;
+    const borderBottom = isLast ? 'none' : '1px dashed #999';
+    const tdBase = `padding:5px 7px;border-bottom:${borderBottom};border-right:1px solid #aaa`;
+    const tdLast = `padding:5px 7px;border-bottom:${borderBottom}`;
+    const refText = line.reference ? `${line.reference} - ` : '';
+    const nameText = line.name || product?.name || 'Article';
     return `<tr>
-      <td style="${tdBase}">- ${product?.name ?? 'Article'}</td>
+      <td style="${tdBase}">${refText}${nameText}</td>
       <td style="${tdBase};text-align:right">${line.taxRate}%</td>
       <td style="${tdBase};text-align:right">${fmtN(line.unitPrice)}</td>
       <td style="${tdBase};text-align:right">${line.quantity}</td>
@@ -1945,23 +1967,24 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
     `<tr><td style="padding:3px 6px">Total TVA ${rate}%</td><td style="padding:3px 6px;text-align:right">${fmtN(amount)}</td></tr>`
   ).join('');
   const paymentsHtml = invoice.paid > 0 ? `
-<div style="margin-top:22px">
-  <div style="font-size:10px;font-weight:700;margin-bottom:6px;color:#4b5563;text-transform:uppercase;letter-spacing:.04em">Versements déjà effectués</div>
-  <table style="width:52%;border-collapse:collapse">
-    <thead><tr style="background:#f3f4f6">
-      <th style="padding:6px 8px;font-size:10px;font-weight:700;text-align:left;color:#4b5563;border-bottom:1px solid #d1d5db">Règlement</th>
-      <th style="padding:6px 8px;font-size:10px;font-weight:700;text-align:right;color:#4b5563;border-bottom:1px solid #d1d5db">Montant</th>
-      <th style="padding:6px 8px;font-size:10px;font-weight:700;text-align:left;color:#4b5563;border-bottom:1px solid #d1d5db">Type</th>
-      <th style="padding:6px 8px;font-size:10px;font-weight:700;text-align:left;color:#4b5563;border-bottom:1px solid #d1d5db">Num</th>
+<div style="width:300px;margin-top:16px">
+  <div style="font-size:10px;margin-bottom:4px;color:#1a2744;text-transform:uppercase">Versements déjà effectués</div>
+  <table style="width:100%;border-collapse:collapse;font-size:9px">
+    <thead><tr style="border-top:1px solid #ccc;border-bottom:1px solid #ccc">
+      <th style="padding:4px 2px;font-weight:normal;text-align:left;color:#4b5563">Règlement</th>
+      <th style="padding:4px 2px;font-weight:normal;text-align:center;color:#4b5563">Montant</th>
+      <th style="padding:4px 2px;font-weight:normal;text-align:left;color:#4b5563">Type</th>
+      <th style="padding:4px 2px;font-weight:normal;text-align:left;color:#4b5563">Num</th>
     </tr></thead>
     <tbody><tr>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${today}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtN(invoice.paid)}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">Carte bancaire</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb"></td>
+      <td style="padding:4px 2px;color:#1a2744">${invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleDateString('fr-FR') : today}</td>
+      <td style="padding:4px 2px;text-align:center;color:#1a2744">${fmtN(invoice.paid)}</td>
+      <td style="padding:4px 2px;color:#1a2744">Espèce</td>
+      <td style="padding:4px 2px;color:#1a2744"></td>
     </tr></tbody>
   </table>
 </div>` : '';
+  const cgvText = template.cgv || '';
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"><title>${documentLabel} ${invoice.number}</title>
@@ -1980,7 +2003,7 @@ td,th{font-size:11px}
   <div style="text-align:right">
     <div style="font-size:16px;font-weight:900;color:#1a2744">${documentLabel} ${invoice.number}</div>
     <div style="margin-top:8px;font-size:10.5px;line-height:1.75;text-align:right;color:#374151">
-      Réf. client : ${customer?.taxNumber || customer?.id?.toUpperCase() || '-'}<br>
+      Réf. client : ${invoice.customerReference || customer?.reference || '-'}<br>
       Date facturation : ${invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : today}<br>
       Date échéance : ${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : today}
     </div>
@@ -1998,14 +2021,14 @@ td,th{font-size:11px}
   <div>
     <div style="font-size:10.5px;margin-bottom:3px;color:#374151">Adressé à</div>
     <div style="border:1px solid #999;background:#fff;padding:9px 11px;font-size:10.5px;line-height:1.7;min-height:82px;color:#1a2744">
-      ${customer ? `<strong>${customer.name}</strong>${customer.companyName && customer.companyName !== customer.name ? `<br>${customer.companyName}` : ''}${customer.billingAddress ? `<br>${customer.billingAddress}` : ''}${customer.taxNumber ? `<br>TVA : ${customer.taxNumber}` : ''}` : 'client'}
+      ${customer ? `<strong>${customer.name}</strong>${customer.billingAddress ? `<br>${customer.billingAddress}` : ''}` : 'client'}
     </div>
-    ${vehicle ? `<div style="margin-top:4px;font-size:9.5px;color:#6b7280">Véhicule : ${vehicle.plate} — ${vehicle.model}</div>` : ''}
   </div>
 </div>
 
 <!-- CATÉGORIE + MONTANTS -->
-<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;font-size:10px;color:#374151">
+${vehicle ? `<div style="border:1px solid #555;padding:4px 8px;font-size:11px;margin-bottom:2px;color:#1a2744">${vehicle.model} ${vehicle.plate}</div>` : ''}
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;font-size:10px;color:#1a2744">
   <span>${template.introText}</span>
   <span>Montants exprimés en Euros</span>
 </div>
@@ -2032,35 +2055,45 @@ td,th{font-size:11px}
   </thead>
   <tbody>
     ${linesHtml}
-    <tr style="height:220px"><td colspan="6" style="border-right:0"></td></tr>
+    <tr style="height:220px">
+      <td style="border-right:1px solid #aaa"></td>
+      <td style="border-right:1px solid #aaa"></td>
+      <td style="border-right:1px solid #aaa"></td>
+      <td style="border-right:1px solid #aaa"></td>
+      <td style="border-right:1px solid #aaa"></td>
+      <td></td>
+    </tr>
   </tbody>
 </table>
 
-<!-- TOTAUX -->
+<!-- RECAPITULATIF TOTAUX ET VERSEMENTS (Droite) -->
 <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-  <table style="border-collapse:collapse;width:300px;font-size:11px">
-    <tr><td style="padding:3px 6px">Total HT</td><td style="padding:3px 6px;text-align:right">${fmtN(subtotal)}</td></tr>
-    ${taxRowsHtml}
-    <tr style="font-weight:700"><td style="padding:4px 6px;background:#e0e0e0;border-top:1px solid #999;border-bottom:1px solid #999">Total TTC</td><td style="padding:4px 6px;text-align:right;background:#e0e0e0;border-top:1px solid #999;border-bottom:1px solid #999">${fmtN(total)}</td></tr>
-    <tr><td style="padding:3px 6px">Payé</td><td style="padding:3px 6px;text-align:right">${fmtN(invoice.paid)}</td></tr>
-    <tr><td style="padding:3px 6px;font-weight:700">Reste à payer</td><td style="padding:3px 6px;text-align:right;font-weight:700">${fmtN(remaining)}</td></tr>
-  </table>
+  <div style="display:flex;flex-direction:column;align-items:flex-end">
+    <table style="border-collapse:collapse;width:300px;font-size:11px">
+      <tr><td style="padding:3px 6px">Total HT</td><td style="padding:3px 6px;text-align:right">${fmtN(subtotal)}</td></tr>
+      ${taxRowsHtml}
+      <tr style="font-weight:700;background:#c0c0c0"><td style="padding:4px 6px">Total TTC</td><td style="padding:4px 6px;text-align:right">${fmtN(total)}</td></tr>
+      <tr><td style="padding:3px 6px">Payé</td><td style="padding:3px 6px;text-align:right">${fmtN(invoice.paid)}</td></tr>
+      <tr style="font-weight:700;background:#c0c0c0"><td style="padding:4px 6px">Reste à payer</td><td style="padding:4px 6px;text-align:right">${fmtN(remaining)}</td></tr>
+    </table>
+    
+    ${paymentsHtml}
+  </div>
 </div>
 
-${paymentsHtml}
 ${invoice.notes ? `<div style="margin-top:10px;font-size:10.5px;color:#374151"><strong>Notes :</strong> ${invoice.notes}</div>` : ''}
 
+<!-- CGV -->
+<div style="margin-top:24px;font-size:8px;line-height:1.5;color:#444;text-align:justify"><strong>CGV :</strong> ${cgvText}</div>
+
 <!-- PIED DE PAGE LÉGAL -->
-<div style="border-top:1px solid #bbb;padding-top:5px;font-size:8.5px;color:#555;display:flex;justify-content:space-between;margin-top:14px">
-  <span>${template.companyLegal}<br>${template.companyRegistration}</span>
-  <span style="white-space:nowrap">1/1</span>
+<div style="position:relative;border-top:1px solid #aaa;padding-top:6px;font-size:8.5px;color:#555;text-align:center;margin-top:12px;line-height:1.4">
+  ${template.companyLegal}<br>${template.companyRegistration}
+  <span style="position:absolute;right:0;top:6px;white-space:nowrap">1/1</span>
 </div>
 
-<!-- CGV TOUT EN BAS -->
-<div style="margin-top:10px;font-size:8px;line-height:1.5;color:#444;text-align:justify"><strong>CGV :</strong> ${template.cgv}</div>
-
 </body></html>`;
-    const win = window.open('', '_blank', 'width=860,height=1100');
+  const win = window.open('', '_blank', 'width=860,height=1100');
   if (win) { win.document.write(html); win.document.close(); win.focus(); }
 }
 
@@ -2080,11 +2113,15 @@ function exportQuotePDF(quote: Quote, customers: Customer[], vehicles: Vehicle[]
   exportInvoicePDF(invoiceLike, customers, vehicles, products, { ...template, type: 'Devis', title: template.title || 'Devis' });
 }
 
-function InvoicePreview({ form, customers, vehicles, products, template = defaultTemplate }: { form: { customerId: string; vehicleId: string; paid: number; status: string; lines: LineItem[]; issueDate?: string; dueDate?: string; notes?: string; number?: string }; customers: Customer[]; vehicles: Vehicle[]; products: Product[]; template?: Omit<Template, 'id' | 'name' | 'activity' | 'status' | 'type'> & { type?: string } }) {
+function InvoicePreview({ form, customers, vehicles, products, template = defaultTemplate }: { form: { customerId: string; customerReference?: string; vehicleId: string; paid: number; status: string; lines: LineItem[]; issueDate?: string; dueDate?: string; paymentDate?: string; notes?: string; number?: string }; customers: Customer[]; vehicles: Vehicle[]; products: Product[]; template?: Omit<Template, 'id' | 'name' | 'activity' | 'status' | 'type'> & { type?: string } }) {
   const customer = customers.find((c) => c.id === form.customerId);
   const vehicle = vehicles.find((v) => v.id === form.vehicleId);
   const subtotal = form.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-  const tax = form.lines.reduce((s, l) => s + l.quantity * l.unitPrice * (l.taxRate / 100), 0);
+  const taxByRate: Record<number, number> = {};
+  form.lines.forEach((l) => {
+    taxByRate[l.taxRate] = (taxByRate[l.taxRate] ?? 0) + l.quantity * l.unitPrice * (l.taxRate / 100);
+  });
+  const tax = Object.values(taxByRate).reduce((s, amt) => s + amt, 0);
   const total = subtotal + tax;
   const remaining = Math.max(0, total - form.paid);
   const today = new Date().toLocaleDateString('fr-FR');
@@ -2098,7 +2135,7 @@ function InvoicePreview({ form, customers, vehicles, products, template = defaul
         <div className="text-right">
           <div className="text-xl font-extrabold">{template.type === 'Devis' ? 'Devis' : 'Facture'} {form.number || 'à renseigner'}</div>
           <div className="mt-3 grid grid-cols-[92px_1fr] gap-x-2 gap-y-1 text-left text-[11px]">
-            <span className="text-muted-foreground">Réf. client :</span><strong>{customer?.id.toUpperCase() ?? '-'}</strong>
+            <span className="text-muted-foreground">Réf. client :</span><strong>{form.customerReference || customer?.reference || '-'}</strong>
             <span className="text-muted-foreground">Facturation :</span><strong>{form.issueDate ? new Date(form.issueDate).toLocaleDateString('fr-FR') : today}</strong>
             <span className="text-muted-foreground">Échéance :</span><strong>{form.dueDate ? new Date(form.dueDate).toLocaleDateString('fr-FR') : '-'}</strong>
           </div>
@@ -2117,12 +2154,16 @@ function InvoicePreview({ form, customers, vehicles, products, template = defaul
             <div className="border border-gray-300 bg-white p-2.5 text-[10px] leading-5 min-h-[72px]">
               {customer ? <><strong>{customer.name}</strong>{customer.billingAddress && <><br />{customer.billingAddress}</>}</> : <span className="text-muted-foreground italic">—</span>}
             </div>
-            {vehicle && <div className="mt-1 text-[9px] text-muted-foreground">Véhicule : {vehicle.plate} — {vehicle.model}</div>}
           </div>
         </div>
-        <div className="overflow-hidden border border-[#555]" style={{tableLayout:'fixed'}}>
-          <table className="w-full border-collapse" style={{tableLayout:'fixed'}}>
-            <colgroup><col style={{width:'42%'}}/><col style={{width:'10%'}}/><col style={{width:'13%'}}/><col style={{width:'9%'}}/><col style={{width:'13%'}}/><col style={{width:'13%'}}/></colgroup>
+        {vehicle && <div className="border border-[#555] px-2 py-1 text-[11px] text-foreground mb-1">{vehicle.model} {vehicle.plate}</div>}
+        <div className="flex justify-between items-baseline mb-1">
+          <div className="text-[10px] text-foreground">{template.introText}</div>
+          <div className="text-[10px] text-foreground">Montants exprimés en Euros</div>
+        </div>
+        <div className="overflow-hidden border border-[#555]" style={{ tableLayout: 'fixed' }}>
+          <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+            <colgroup><col style={{ width: '42%' }} /><col style={{ width: '10%' }} /><col style={{ width: '13%' }} /><col style={{ width: '9%' }} /><col style={{ width: '13%' }} /><col style={{ width: '13%' }} /></colgroup>
             <thead><tr style={{ borderBottom: '1px solid #555', background: '#fff', color: '#1a2744' }}>
               <th className="px-2 py-1.5 text-left text-[9px] font-bold border-r border-[#aaa]">Désignation</th>
               <th className="px-2 py-1.5 text-right text-[9px] font-bold border-r border-[#aaa]">TVA</th>
@@ -2136,22 +2177,91 @@ function InvoicePreview({ form, customers, vehicles, products, template = defaul
                 const product = products.find((p) => p.id === line.productId);
                 const ht = line.quantity * line.unitPrice;
                 const ttc = ht * (1 + line.taxRate / 100);
-                return <tr key={i} style={{borderBottom:'1px solid #bbb',color:'#1a2744'}}><td className="px-2 py-1 text-[9.5px] border-r border-[#bbb] truncate">- {product?.name ?? '—'}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.taxRate}%</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(line.unitPrice)}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.quantity}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(ht)}</td><td className="px-2 py-1 text-right text-[9.5px]">{money(ttc)}</td></tr>;
+                const refText = line.reference ? `${line.reference} - ` : '';
+                const nameText = line.name || product?.name || '—';
+                const isLast = i === form.lines.length - 1;
+                return <tr key={i} style={{ borderBottom: isLast ? 'none' : '1px dashed #bbb', color: '#1a2744' }}><td className="px-2 py-1 text-[9.5px] border-r border-[#bbb] truncate">{refText}{nameText}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.taxRate}%</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(line.unitPrice)}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.quantity}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(ht)}</td><td className="px-2 py-1 text-right text-[9.5px]">{money(ttc)}</td></tr>;
               })}
+              <tr className="h-[220px]">
+                <td className="border-r border-[#bbb]"></td>
+                <td className="border-r border-[#bbb]"></td>
+                <td className="border-r border-[#bbb]"></td>
+                <td className="border-r border-[#bbb]"></td>
+                <td className="border-r border-[#bbb]"></td>
+                <td></td>
+              </tr>
             </tbody>
           </table>
         </div>
-        <div className="text-[10px] text-muted-foreground">{template.introText} · Montants exprimés en Euros</div>
-        <div className="ml-auto w-56 space-y-0 text-[10.5px] border border-border">
-          <div className="flex justify-between px-3 py-1 border-b border-border"><span>Total HT</span><span>{money(subtotal)}</span></div>
-          <div className="flex justify-between px-3 py-1 border-b border-border"><span>Total TVA 20%</span><span>{money(tax)}</span></div>
-          <div className="flex justify-between px-3 py-1.5 border-b-2 border-foreground font-bold text-[11px]"><span>Total TTC</span><span>{money(total)}</span></div>
-          <div className="flex justify-between px-3 py-1 border-b border-border"><span>Payé</span><span>{money(form.paid)}</span></div>
-          <div className="flex justify-between px-3 py-1 font-semibold"><span>Reste à payer</span><span>{money(remaining)}</span></div>
+
+        <div className="flex justify-end mt-2">
+          <div className="w-[300px] text-[10.5px]">
+            <table className="w-full text-[10.5px]">
+              <tbody>
+                <tr>
+                  <td className="px-2 py-1">Total HT</td>
+                  <td className="px-2 py-1 text-right">{money(subtotal)}</td>
+                </tr>
+                {Object.entries(taxByRate).map(([rate, amount]) => (
+                  <tr key={rate}>
+                    <td className="px-2 py-1">Total TVA {rate}%</td>
+                    <td className="px-2 py-1 text-right">{money(amount)}</td>
+                  </tr>
+                ))}
+                <tr className="bg-[#c0c0c0] font-bold">
+                  <td className="px-2 py-1.5">Total TTC</td>
+                  <td className="px-2 py-1.5 text-right">{money(total)}</td>
+                </tr>
+                <tr>
+                  <td className="px-2 py-1">Payé</td>
+                  <td className="px-2 py-1 text-right">{money(form.paid)}</td>
+                </tr>
+                <tr className="bg-[#c0c0c0] font-bold">
+                  <td className="px-2 py-1.5">Reste à payer</td>
+                  <td className="px-2 py-1.5 text-right">{money(remaining)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {form.paid > 0 && (
+              <div className="mt-4">
+                <div className="text-[9.5px] mb-1 text-foreground uppercase">Versements déjà effectués</div>
+                <table className="w-full border-collapse text-[9px]">
+                  <thead>
+                    <tr className="border-y border-slate-300">
+                      <th className="py-1 text-left font-normal text-muted-foreground">Règlement</th>
+                      <th className="py-1 text-center font-normal text-muted-foreground">Montant</th>
+                      <th className="py-1 text-left font-normal text-muted-foreground">Type</th>
+                      <th className="py-1 text-left font-normal text-muted-foreground">Num</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="py-1 text-foreground">{form.paymentDate ? new Date(form.paymentDate).toLocaleDateString('fr-FR') : today}</td>
+                      <td className="py-1 text-center text-foreground">{money(form.paid)}</td>
+                      <td className="py-1 text-foreground">Espèce</td>
+                      <td className="py-1 text-foreground"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
-        {form.notes && <div className="rounded-lg bg-muted px-3 py-2.5"><div className="mb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Notes</div><div className="text-[11px] text-muted-foreground">{form.notes}</div></div>}
-        <div className="border-t border-border pt-3 text-[9px] leading-4 text-muted-foreground"><strong>CGV :</strong> {template.cgv}</div>
-        <div className="flex justify-between border-t border-border pt-2 text-[9px] text-muted-foreground"><span>{template.companyLegal}</span><span>1 / 1</span></div>
+
+        {form.notes && <div className="mt-4 rounded-lg bg-muted px-3 py-2.5"><div className="mb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Notes</div><div className="text-[11px] text-muted-foreground">{form.notes}</div></div>}
+
+        <div className="mt-8 text-[8px] leading-relaxed text-muted-foreground text-justify">
+          <strong>CGV :</strong> {template.cgv}
+        </div>
+
+        <div className="relative border-t border-slate-300 mt-4 pt-3 text-[8px] text-muted-foreground text-center">
+          <div className="leading-relaxed">
+            {template.companyLegal}<br />
+            {template.companyRegistration}
+          </div>
+          <div className="absolute right-0 top-3">1 / 1</div>
+        </div>
       </div>
     </div>
   );
@@ -2290,7 +2400,11 @@ function Pagination({ total, page, perPage, onChange }: { total: number; page: n
 
 function InvoicesPage({ customers, vehicles, products, templates, invoices, query, startCreate = false, initialStatusFilter = 'Toutes', companyOverride, onCreate, onUpdate, onOpenEntity, onCreateCustomer, onCreateProduct }: { customers: Customer[]; vehicles: Vehicle[]; products: Product[]; templates: Template[]; invoices: Invoice[]; query: string; startCreate?: boolean; initialStatusFilter?: string; companyOverride?: Partial<typeof defaultTemplate>; onCreate: (invoice: Omit<Invoice, 'id'>) => void; onUpdate: (id: string, patch: Omit<Invoice, 'id'>) => void; onOpenEntity: (kind: NonNullable<RelationTarget>['kind'], id: string) => void; onCreateCustomer: (customer: Omit<Customer, 'id'>) => string; onCreateProduct: (product: Omit<Product, 'id'>) => string }) {
   const todayStr = new Date().toISOString().slice(0, 10);
-  const emptyForm = { number: '', customerId: '', vehicleId: '', paid: 0, status: 'À payer', lines: [] as LineItem[], issueDate: todayStr, dueDate: '', notes: '' };
+  const currentDate = new Date();
+  const yearSuffix = currentDate.getFullYear().toString().slice(-2);
+  const monthSuffix = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+  const invoicePrefix = `FA${yearSuffix}${monthSuffix}-`;
+  const emptyForm = { number: '', customerId: '', customerReference: '', vehicleId: '', paid: 0, status: 'Payée', paymentMethod: 'Espèces', lines: [] as LineItem[], issueDate: todayStr, dueDate: todayStr, paymentDate: todayStr, notes: '' };
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState<Invoice | null>(null);
   const [emailInvoice, setEmailInvoice] = useState<Invoice | null>(null);
@@ -2301,11 +2415,11 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
   const [showCreate, setShowCreate] = useState(startCreate);
   const [page, setPage] = useState(1);
 
-  const emptyClientForm = { name: '', companyName: '', email: '', phone: '', mobile: '', type: 'Particulier', taxNumber: '', paymentTerms: 'Comptant', currency: 'EUR', website: '', billingAddress: '', shippingAddress: '', notes: '' };
+  const emptyClientForm = { reference: '', name: '', companyName: '', email: '', phone: '', mobile: '', type: 'Particulier', taxNumber: '', paymentTerms: 'Comptant', currency: 'EUR', website: '', billingAddress: '', shippingAddress: '', notes: '' };
   const [clientModalOpen, setClientModalOpen] = useState(false);
   const [clientForm, setClientForm] = useState(emptyClientForm);
 
-  const emptyProductForm = { name: '', type: 'Service', unit: 'forfait', unitPrice: 0, taxRate: 20 };
+  const emptyProductForm = { reference: '', name: '', type: 'Service', unit: 'forfait', unitPrice: 0, taxRate: 20 };
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [productForm, setProductForm] = useState(emptyProductForm);
   const perPage = 10;
@@ -2332,10 +2446,10 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
     Brouillon: 'bg-gray-100 text-gray-600 border border-gray-200',
   };
 
-  const handleSave = (status: string) => {
+  const handleSave = () => {
     if (!form.number.trim() || !form.customerId || form.lines.length === 0) return;
-    const computedStatus = form.paid >= total ? 'Payée' : form.paid > 0 ? 'Acompte' : status;
-    const patch = { number: form.number.trim(), customerId: form.customerId, vehicleId: form.vehicleId, paid: form.paid, status: computedStatus, lines: form.lines, issueDate: form.issueDate, dueDate: form.dueDate, notes: form.notes };
+    const finalNumber = form.number.startsWith(invoicePrefix) ? form.number : `${invoicePrefix}${form.number}`;
+    const patch = { number: finalNumber.trim(), customerId: form.customerId, customerReference: form.customerReference, vehicleId: form.vehicleId, paid: form.status === 'Payée' ? total : (form.paid || 0), status: form.status, paymentMethod: form.paymentMethod, lines: form.lines, issueDate: form.issueDate, dueDate: form.dueDate, paymentDate: form.paymentDate, notes: form.notes };
     if (editing) {
       onUpdate(editing.id, patch);
     } else {
@@ -2354,14 +2468,16 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
 
   const handleEditClick = (invoice: Invoice) => {
     setForm({
-      number: invoice.number,
+      number: invoice.number.startsWith(invoicePrefix) ? invoice.number.replace(invoicePrefix, '') : invoice.number,
       customerId: invoice.customerId,
+      customerReference: invoice.customerReference || '',
       vehicleId: invoice.vehicleId || '',
       paid: invoice.paid,
       status: invoice.status,
       lines: invoice.lines,
-      issueDate: invoice.issueDate || new Date().toISOString().slice(0, 10),
-      dueDate: invoice.dueDate || '',
+      issueDate: invoice.issueDate || todayStr,
+      dueDate: invoice.dueDate || todayStr,
+      paymentDate: invoice.paymentDate || todayStr,
       notes: invoice.notes || '',
     });
     setEditing(invoice);
@@ -2382,27 +2498,25 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
           {/* Desktop Actions */}
           <div className="hidden sm:flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={handleCancel}>Annuler</Button>
-            <Button type="button" variant="secondary" size="sm" onClick={() => handleSave('Brouillon')}>Brouillon</Button>
-            <Button type="button" size="sm" onClick={() => handleSave(form.status)}><Send size={14} className="mr-2" /> {editing ? 'Enregistrer' : 'Créer la facture'}</Button>
+            <Button type="button" size="sm" onClick={() => handleSave()}><Send size={14} className="mr-2" /> {editing ? 'Enregistrer' : 'Créer la facture'}</Button>
           </div>
         </div>
 
         {/* Mobile Sticky Actions */}
         <div className="fixed bottom-0 left-0 right-0 z-[60] flex flex-col sm:hidden gap-3 border-t border-border bg-white p-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] pb-5">
           <div className="flex items-center justify-between border-b border-border pb-3">
-             <div className="flex flex-col">
-               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Total TTC</span>
-               <span className="text-lg font-black text-primary">{money(total)}</span>
-             </div>
-             <Button type="button" variant="outline" size="sm" onClick={() => {
-                const tempInv = { id: editing?.id || id('f'), ...form };
-                exportInvoicePDF(tempInv as Invoice, customers, vehicles, products, invoiceTemplate);
-              }}><Download size={14} className="mr-2" /> Exporter PDF</Button>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Total TTC</span>
+              <span className="text-lg font-black text-primary">{money(total)}</span>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => {
+              const tempInv = { id: editing?.id || id('f'), ...form };
+              exportInvoicePDF(tempInv as Invoice, customers, vehicles, products, invoiceTemplate);
+            }}><Download size={14} className="mr-2" /> Exporter PDF</Button>
           </div>
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" className="flex-1" onClick={handleCancel}>Annuler</Button>
-            <Button type="button" variant="secondary" className="flex-1" onClick={() => handleSave('Brouillon')}>Brouillon</Button>
-            <Button type="button" className="flex-[2]" onClick={() => handleSave(form.status)}><Send size={14} className="mr-1" /> {editing ? 'Enregistrer' : 'Créer'}</Button>
+            <Button type="button" className="flex-1" onClick={() => handleSave()}>Enregistrer</Button>
           </div>
         </div>
 
@@ -2414,19 +2528,32 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
             <div className="space-y-5 p-6">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">N° de facture <span className="text-red-500">*</span></label>
-                <Input value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="FA2605-3740" />
-                <p className="mt-1 text-xs text-muted-foreground">Le numéro est saisi par le gestionnaire. Aucun numéro n’est généré automatiquement.</p>
+                <div className="flex">
+                  <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground font-medium">
+                    {invoicePrefix}
+                  </span>
+                  <Input className="rounded-l-none" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="1234" />
+                </div>
               </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client <span className="text-red-500">*</span></label>
-                <SearchCombobox
-                  items={customers.map((c) => ({ id: c.id, label: c.name, sublabel: c.companyName }))}
-                  value={form.customerId}
-                  onChange={(cid) => setForm({ ...form, customerId: cid })}
-                  placeholder="Sélectionner un client..."
-                  actionLabel="Nouveau client"
-                  onAction={() => { setClientForm(emptyClientForm); setClientModalOpen(true); }}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client <span className="text-red-500">*</span></label>
+                  <SearchCombobox
+                    items={customers.map((c) => ({ id: c.id, label: c.name, sublabel: c.companyName }))}
+                    value={form.customerId}
+                    onChange={(cid) => {
+                      const cust = customers.find(c => c.id === cid);
+                      setForm({ ...form, customerId: cid, customerReference: cust?.reference || `DE0${(customers.length + 1).toString().padStart(4, '0')}` });
+                    }}
+                    placeholder="Sélectionner un client..."
+                    actionLabel="Nouveau client"
+                    onAction={() => { setClientForm({ ...emptyClientForm, reference: generateCustomerReference(customers) }); setClientModalOpen(true); }}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Réf. Client</label>
+                  <Input value={form.customerReference || ''} onChange={(e) => setForm({ ...form, customerReference: e.target.value })} placeholder="DE0..." />
+                </div>
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dossier / Véhicule</label>
@@ -2437,27 +2564,38 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                   placeholder="Sélectionner un dossier..."
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 sm:gap-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</label>
+                  <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                    <option>Brouillon</option>
+                    <option>Envoyée</option>
+                    <option>À payer</option>
+                    <option>Payée</option>
+                    <option>Annulée</option>
+                  </Select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Paiement</label>
+                  <Select value={form.paymentMethod || 'Espèces'} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
+                    <option>Espèces</option>
+                    <option>Carte</option>
+                    <option>Virement</option>
+                    <option>Chèque</option>
+                  </Select>
+                </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date d'émission <span className="text-red-500">*</span></label>
                   <Input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</label>
-                  <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                    <option>À payer</option>
-                    <option>Acompte</option>
-                    <option>Payée</option>
-                  </Select>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date d'échéance</label>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date d'échéance <span className="text-red-500">*</span></label>
                   <Input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
                 </div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Acompte déjà reçu (€)</label>
-                <Input type="number" value={form.paid} onChange={(e) => setForm({ ...form, paid: Number(e.target.value) })} placeholder="0" />
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date de règlement <span className="text-red-500">*</span></label>
+                  <Input type="date" value={form.paymentDate} onChange={(e) => setForm({ ...form, paymentDate: e.target.value })} />
+                </div>
               </div>
               <div>
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tableau d'articles <span className="text-red-500">*</span></div>
@@ -2465,42 +2603,52 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                 <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
                   <table className="w-full min-w-[700px] text-sm">
                     <thead><tr className="border-b border-border bg-muted">
+                      <th className="w-32 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Identifiant</th>
                       <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Article</th>
                       <th className="w-20 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Qté</th>
-                      <th className="w-28 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix HT</th>
+                      <th className="w-28 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix TTC</th>
                       <th className="w-20 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA%</th>
                       <th className="w-8 px-3 py-2.5"></th>
                     </tr></thead>
                     <tbody className="divide-y divide-border">
                       {form.lines.map((line, index) => (
                         <tr key={index} className="bg-white transition-colors hover:bg-muted/30">
-                          <td className="px-3 py-2.5">
-                            <SearchCombobox
-                              items={products.map((p) => ({ id: p.id, label: p.name, sublabel: money(p.unitPrice) + ' / ' + p.unit }))}
-                              value={line.productId}
-                              onChange={(pid) => {
-                                const np = products.find((p) => p.id === pid);
-                                setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, productId: pid, unitPrice: np?.unitPrice ?? it.unitPrice, taxRate: np?.taxRate ?? it.taxRate } : it) }));
-                              }}
-                              placeholder="Choisir un article..."
-                              actionLabel="Nouvel article"
-                              onAction={() => { setProductForm(emptyProductForm); setProductModalOpen(true); }}
-                            />
-                          </td>
+                          <td className="px-3 py-2.5"><Input value={line.reference || ''} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, reference: e.target.value } : it) }))} placeholder="REF..." /></td>
+                          <td className="px-3 py-2.5"><Input value={line.name || ''} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, name: e.target.value } : it) }))} placeholder="Nom de l'article" /></td>
                           <td className="px-3 py-2.5"><Input type="number" min={0} step="any" value={line.quantity} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, quantity: Number(e.target.value) } : it) }))} /></td>
-                          <td className="px-3 py-2.5"><Input type="number" min={0} step="any" value={line.unitPrice} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) } : it) }))} /></td>
-                          <td className="px-3 py-2.5"><Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value) } : it) }))} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" min={0} step="any" value={Math.round(line.unitPrice * (1 + line.taxRate / 100) * 100) / 100} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) / (1 + it.taxRate / 100) } : it) }))} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value), unitPrice: (it.unitPrice * (1 + it.taxRate / 100)) / (1 + Number(e.target.value) / 100) } : it) }))} /></td>
                           <td className="px-3 py-2.5 text-center">
-                            <button type="button" onClick={() => setForm((prev) => ({ ...prev, lines: prev.lines.filter((_it, i) => i !== index) }))} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>
+                            <div className="flex items-center justify-center gap-1">
+                              {!line.productId && (
+                                <button type="button" title="Sauvegarder au catalogue" onClick={() => {
+                                  if (!line.name) return;
+                                  const newId = onCreateProduct({ reference: line.reference || '', name: line.name, type: 'Produit', unit: 'forfait', unitPrice: line.unitPrice, taxRate: line.taxRate });
+                                  setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, productId: newId } : it) }));
+                                }} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-green-50 hover:text-green-600"><Save size={13} /></button>
+                              )}
+                              <button type="button" onClick={() => setForm((prev) => ({ ...prev, lines: prev.lines.filter((_it, i) => i !== index) }))} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>
+                            </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  <div className="border-t border-border bg-white px-3 py-2.5">
-                    <button type="button" onClick={() => setForm({ ...form, lines: [...form.lines, { productId: '', quantity: 1, unitPrice: 0, taxRate: 20 }] })} className="flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
-                      <Plus size={14} /> Ajouter un article
+                  <div className="border-t border-border bg-white px-3 py-2.5 flex flex-wrap items-center gap-3">
+                    <button type="button" onClick={() => setForm({ ...form, lines: [...form.lines, { id: id('l'), productId: '', reference: '', name: '', quantity: 1, unitPrice: 0, taxRate: 20 }] })} className="flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80">
+                      <Plus size={14} /> Ligne libre
                     </button>
+                    <div className="w-64">
+                      <SearchCombobox
+                        items={products.map((p) => ({ id: p.id, label: p.name, sublabel: p.reference ? `[${p.reference}] ${money(p.unitPrice * (1 + p.taxRate / 100))} TTC` : `${money(p.unitPrice * (1 + p.taxRate / 100))} TTC` }))}
+                        value=""
+                        onChange={(pid) => {
+                          const np = products.find((p) => p.id === pid);
+                          if (np) setForm((prev) => ({ ...prev, lines: [...prev.lines, { id: id('l'), productId: np.id, reference: np.reference || '', name: np.name, quantity: 1, unitPrice: np.unitPrice, taxRate: np.taxRate }] }));
+                        }}
+                        placeholder="Rechercher au catalogue..."
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -2510,40 +2658,49 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                     <div key={index} className="rounded-lg border border-border bg-white flex flex-col">
                       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2">
                         <span className="text-xs font-semibold text-muted-foreground uppercase">Ligne {index + 1}</span>
-                        <button type="button" onClick={() => setForm((prev) => ({ ...prev, lines: prev.lines.filter((_it, i) => i !== index) }))} className="text-muted-foreground transition-colors hover:text-red-600"><Trash2 size={14} /></button>
+                        <div className="flex items-center gap-2">
+                          {!line.productId && (
+                            <button type="button" title="Sauvegarder au catalogue" onClick={() => {
+                              if (!line.name) return;
+                              const newId = onCreateProduct({ reference: line.reference || '', name: line.name, type: 'Produit', unit: 'forfait', unitPrice: line.unitPrice, taxRate: line.taxRate });
+                              setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, productId: newId } : it) }));
+                            }} className="text-muted-foreground transition-colors hover:text-green-600"><Save size={14} /></button>
+                          )}
+                          <button type="button" onClick={() => setForm((prev) => ({ ...prev, lines: prev.lines.filter((_it, i) => i !== index) }))} className="text-muted-foreground transition-colors hover:text-red-600"><Trash2 size={14} /></button>
+                        </div>
                       </div>
                       <div className="p-3 space-y-3">
-                        <SearchCombobox
-                          items={products.map((p) => ({ id: p.id, label: p.name, sublabel: money(p.unitPrice) + ' / ' + p.unit }))}
-                          value={line.productId}
-                          onChange={(pid) => {
-                            const np = products.find((p) => p.id === pid);
-                            setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, productId: pid, unitPrice: np?.unitPrice ?? it.unitPrice, taxRate: np?.taxRate ?? it.taxRate } : it) }));
-                          }}
-                          placeholder="Choisir un article..."
-                          actionLabel="Nouvel article"
-                          onAction={() => { setProductForm(emptyProductForm); setProductModalOpen(true); }}
-                        />
+                        <Input value={line.reference || ''} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, reference: e.target.value } : it) }))} placeholder="Référence" />
+                        <Input value={line.name || ''} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, name: e.target.value } : it) }))} placeholder="Nom de l'article" />
                         <div className="grid grid-cols-3 gap-2">
                           <div>
                             <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Qté</label>
                             <Input type="number" min={0} step="any" value={line.quantity} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, quantity: Number(e.target.value) } : it) }))} />
                           </div>
                           <div>
-                            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Prix HT</label>
-                            <Input type="number" min={0} step="any" value={line.unitPrice} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) } : it) }))} />
+                            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Prix TTC</label>
+                            <Input type="number" min={0} step="any" value={Math.round(line.unitPrice * (1 + line.taxRate / 100) * 100) / 100} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) / (1 + it.taxRate / 100) } : it) }))} />
                           </div>
                           <div>
                             <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">TVA%</label>
-                            <Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value) } : it) }))} />
+                            <Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value), unitPrice: (it.unitPrice * (1 + it.taxRate / 100)) / (1 + Number(e.target.value) / 100) } : it) }))} />
                           </div>
                         </div>
                       </div>
                     </div>
                   ))}
-                  <Button type="button" variant="outline" onClick={() => setForm({ ...form, lines: [...form.lines, { productId: '', quantity: 1, unitPrice: 0, taxRate: 20 }] })} className="w-full mt-1 border-dashed">
-                    <Plus size={14} className="mr-2" /> Ajouter un article
+                  <Button type="button" variant="outline" onClick={() => setForm({ ...form, lines: [...form.lines, { id: id('l'), productId: '', reference: '', name: '', quantity: 1, unitPrice: 0, taxRate: 20 }] })} className="w-full mt-1 border-dashed">
+                    <Plus size={14} className="mr-2" /> Ligne libre
                   </Button>
+                  <SearchCombobox
+                    items={products.map((p) => ({ id: p.id, label: p.name, sublabel: p.reference ? `[${p.reference}] ${money(p.unitPrice * (1 + p.taxRate / 100))} TTC` : `${money(p.unitPrice * (1 + p.taxRate / 100))} TTC` }))}
+                    value=""
+                    onChange={(pid) => {
+                      const np = products.find((p) => p.id === pid);
+                      if (np) setForm((prev) => ({ ...prev, lines: [...prev.lines, { id: id('l'), productId: np.id, reference: np.reference || '', name: np.name, quantity: 1, unitPrice: np.unitPrice, taxRate: np.taxRate }] }));
+                    }}
+                    placeholder="Rechercher au catalogue..."
+                  />
                 </div>
               </div>
               <div>
@@ -2560,18 +2717,19 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                 <Download size={14} /> Exporter PDF
               </Button>
             </div>
-            <InvoicePreview form={form} customers={customers} vehicles={vehicles} products={products} template={invoiceTemplate} />
+            <InvoicePreview form={{ ...form, number: form.number.startsWith(invoicePrefix) ? form.number : `${invoicePrefix}${form.number}` }} customers={customers} vehicles={vehicles} products={products} template={invoiceTemplate} />
           </div>
         </div>
 
         {/* Inline modals */}
         <EditDialog title="Nouveau client" open={clientModalOpen} onClose={() => setClientModalOpen(false)} onSubmit={() => {
-          if (!clientForm.name) return;
+          if (!clientForm.name || !clientForm.reference) return;
           const newId = onCreateCustomer(clientForm);
           setForm((f) => ({ ...f, customerId: newId }));
           setClientModalOpen(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Référence client <span className="text-red-500">*</span></label><Input value={clientForm.reference || ''} onChange={(e) => setClientForm({ ...clientForm, reference: e.target.value })} placeholder="DE00001" /></div>
             <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} placeholder="Martin Services" /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Société</label><Input value={clientForm.companyName} onChange={(e) => setClientForm({ ...clientForm, companyName: e.target.value })} /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</label><Input type="email" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} /></div>
@@ -2583,15 +2741,16 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
         <EditDialog title="Nouvel article" open={productModalOpen} onClose={() => setProductModalOpen(false)} onSubmit={() => {
           if (!productForm.name) return;
           const newId = onCreateProduct(productForm);
-          setForm((f) => ({ ...f, lines: [...f.lines, { productId: newId, quantity: 1, unitPrice: productForm.unitPrice, taxRate: productForm.taxRate }] }));
+          setForm((f) => ({ ...f, lines: [...f.lines, { id: id('l'), productId: newId, reference: productForm.reference || '', name: productForm.name, quantity: 1, unitPrice: productForm.unitPrice, taxRate: productForm.taxRate }] }));
           setProductModalOpen(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Référence / Identifiant</label><Input value={productForm.reference || ''} onChange={(e) => setProductForm({ ...productForm, reference: e.target.value })} placeholder="REF-123" /></div>
             <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} placeholder="Main-d'oeuvre" /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</label><Select value={productForm.type} onChange={(e) => setProductForm({ ...productForm, type: e.target.value })}><option>Service</option><option>Produit</option><option>Forfait</option></Select></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unité</label><Input value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} /></div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix HT (€)</label><Input type="number" value={productForm.unitPrice} onChange={(e) => setProductForm({ ...productForm, unitPrice: Number(e.target.value) })} /></div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA (%)</label><Input type="number" value={productForm.taxRate} onChange={(e) => setProductForm({ ...productForm, taxRate: Number(e.target.value) })} /></div>
+            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix TTC (€)</label><Input type="number" min={0} step="any" value={Math.round(productForm.unitPrice * (1 + productForm.taxRate / 100) * 100) / 100} onChange={(e) => setProductForm({ ...productForm, unitPrice: Number(e.target.value) / (1 + productForm.taxRate / 100) })} /></div>
+            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA (%)</label><Input type="number" value={productForm.taxRate} onChange={(e) => setProductForm({ ...productForm, taxRate: Number(e.target.value), unitPrice: (productForm.unitPrice * (1 + productForm.taxRate / 100)) / (1 + Number(e.target.value) / 100) })} /></div>
           </div>
         </EditDialog>
       </div>
@@ -2689,12 +2848,14 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                       <div className="flex items-center justify-center gap-1">
                         <button type="button" title="Modifier" onClick={() => handleEditClick(invoice)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><Edit3 size={14} /></button>
                         <button type="button" title="Exporter PDF" onClick={() => exportInvoicePDF(invoice, customers, vehicles, products, invoiceTemplate)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-blue-50 hover:text-primary"><Download size={14} /></button>
-                        <button type="button" title="Envoyer par email" onClick={() => { const cust = customers.find(c => c.id === invoice.customerId); setEmailInvoice(invoice); setEmailTo(cust?.email ?? ''); setEmailSubject(`Facture ${invoice.number}`); setEmailBody(`Bonjour,
+                        <button type="button" title="Envoyer par email" onClick={() => {
+                          const cust = customers.find(c => c.id === invoice.customerId); setEmailInvoice(invoice); setEmailTo(cust?.email ?? ''); setEmailSubject(`Facture ${invoice.number}`); setEmailBody(`Bonjour,
 
 Veuillez trouver ci-joint la facture ${invoice.number}.
 
 Cordialement,
-${companyOverride?.companyName ?? ''}`); }} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-green-50 hover:text-green-700"><Send size={14} /></button>
+${companyOverride?.companyName ?? ''}`);
+                        }} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-green-50 hover:text-green-700"><Send size={14} /></button>
                       </div>
                     </td>
                   </tr>
@@ -3018,58 +3179,58 @@ function TemplatesPage({ templates, onUpdateTemplate, onClose }: { templates: Te
         <p className="text-muted-foreground mb-8">
           L'éditeur de modèles de factures est réservé aux écrans d'ordinateur pour des raisons de confort et de précision. Veuillez vous connecter depuis un ordinateur pour modifier vos modèles.
         </p>
-        <Button onClick={onClose} className="w-full max-w-[280px]">Retour à l'application</Button>
+        <Button onClick={onClose} size="md" className="w-full max-w-[280px]">Retour à l'application</Button>
       </div>
 
       {/* Vue Desktop : L'éditeur */}
       <div className="hidden md:flex flex-col h-full w-full">
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-white px-5">
           <h1 className="shrink-0 whitespace-nowrap text-2xl font-semibold">Éditer un modèle</h1>
-        <div className="ml-4 flex min-w-0 items-center gap-3 overflow-x-auto">
-          <Select value={selectedTemplateId} onChange={(event) => setSelectedTemplateId(event.target.value)} className="w-52">
-            {templates.map((item) => <option key={item.id} value={item.id}>{item.type} · {item.name}</option>)}
-          </Select>
-          <Select value={selectedTemplate?.primaryColor ?? '#111111'} onChange={(event) => {
-            const theme = themeOptions.find((item) => item.primaryColor === event.target.value);
-            if (theme) updateSelectedTemplate({ primaryColor: theme.primaryColor, accentColor: theme.accentColor });
-          }} className="w-72">
-            {themeOptions.map((theme) => <option key={theme.primaryColor} value={theme.primaryColor}>Sélectionner un thème · {theme.label}</option>)}
-          </Select>
-          <Button type="button" variant="outline"><RefreshCw size={16} /> Actualiser l’aperçu</Button>
-          <Button type="button"><Save size={16} /> Enregistrer</Button>
-          <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-md text-red-500 hover:bg-red-50" title="Fermer">
-            <X size={24} />
-          </button>
-        </div>
-      </header>
+          <div className="ml-4 flex min-w-0 items-center gap-3 overflow-x-auto">
+            <Select value={selectedTemplateId} onChange={(event) => setSelectedTemplateId(event.target.value)} className="w-52">
+              {templates.map((item) => <option key={item.id} value={item.id}>{item.type} · {item.name}</option>)}
+            </Select>
+            <Select value={selectedTemplate?.primaryColor ?? '#111111'} onChange={(event) => {
+              const theme = themeOptions.find((item) => item.primaryColor === event.target.value);
+              if (theme) updateSelectedTemplate({ primaryColor: theme.primaryColor, accentColor: theme.accentColor });
+            }} className="w-72">
+              {themeOptions.map((theme) => <option key={theme.primaryColor} value={theme.primaryColor}>Sélectionner un thème · {theme.label}</option>)}
+            </Select>
+            <Button type="button" variant="outline"><RefreshCw size={16} /> Actualiser l’aperçu</Button>
+            <Button type="button"><Save size={16} /> Enregistrer</Button>
+            <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-md text-red-500 hover:bg-red-50" title="Fermer">
+              <X size={24} />
+            </button>
+          </div>
+        </header>
 
-      {selectedTemplate && (
-        <div className="grid min-h-0 flex-1 grid-cols-[104px_600px_minmax(0,1fr)]">
-          <nav className="bg-black p-2">
-            {editorSections.map((section) => (
-              <button
-                key={section.label}
-                type="button"
-                onClick={() => setEditorSection(section.label)}
-                className={`mb-2 flex h-20 w-full flex-col items-center justify-center gap-1 rounded-md px-2 text-center text-xs font-medium transition-colors ${editorSection === section.label ? 'bg-white text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
-              >
-                <section.icon size={21} />
-                {section.label}
-              </button>
-            ))}
-          </nav>
+        {selectedTemplate && (
+          <div className="grid min-h-0 flex-1 grid-cols-[104px_600px_minmax(0,1fr)]">
+            <nav className="bg-black p-2">
+              {editorSections.map((section) => (
+                <button
+                  key={section.label}
+                  type="button"
+                  onClick={() => setEditorSection(section.label)}
+                  className={`mb-2 flex h-20 w-full flex-col items-center justify-center gap-1 rounded-md px-2 text-center text-xs font-medium transition-colors ${editorSection === section.label ? 'bg-white text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
+                >
+                  <section.icon size={21} />
+                  {section.label}
+                </button>
+              ))}
+            </nav>
 
-          <aside className="min-h-0 overflow-auto border-r border-border bg-white p-7">
-            {renderPanel()}
-          </aside>
+            <aside className="min-h-0 overflow-auto border-r border-border bg-white p-7">
+              {renderPanel()}
+            </aside>
 
-          <main className="min-h-0 overflow-auto p-10">
-            <div className="mx-auto max-w-[1080px]">
-              <QuoteTemplatePreview template={selectedTemplate} data={templatePreviewData} />
-            </div>
-          </main>
-        </div>
-      )}
+            <main className="min-h-0 overflow-auto p-10">
+              <div className="mx-auto max-w-[1080px]">
+                <QuoteTemplatePreview template={selectedTemplate} data={templatePreviewData} />
+              </div>
+            </main>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3171,9 +3332,8 @@ function SettingsPage({ company, onCompanyChange, selectedActivity, onActivityCh
                 key={activity.key}
                 type="button"
                 onClick={() => onActivityChange(activity.key as ActivityKey)}
-                className={`w-full rounded-md border p-3 text-left transition ${
-                  selectedActivity === activity.key ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-white hover:bg-muted'
-                }`}
+                className={`w-full rounded-md border p-3 text-left transition ${selectedActivity === activity.key ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-white hover:bg-muted'
+                  }`}
               >
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <activity.icon size={16} className="text-primary" />
@@ -3238,6 +3398,7 @@ function HelpPage({ setActivePage }: { setActivePage: (page: Page) => void }) {
 function CustomerFields({ value, onChange }: { value: Omit<Customer, 'id'>; onChange: (value: Omit<Customer, 'id'>) => void }) {
   return (
     <>
+      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Référence client <span className="text-red-500">*</span></label><Input value={value.reference || ''} onChange={(event) => onChange({ ...value, reference: event.target.value })} placeholder="CLI-001" /></div>
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={value.name} onChange={(event) => onChange({ ...value, name: event.target.value })} placeholder="Martin Services" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Société</label><Input value={value.companyName} onChange={(event) => onChange({ ...value, companyName: event.target.value })} placeholder="Martin Services SARL" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Type</label><Select value={value.type} onChange={(event) => onChange({ ...value, type: event.target.value })}><option>Entreprise</option><option>Particulier</option><option>Professionnel</option><option>Flotte</option></Select></div>
@@ -3258,11 +3419,12 @@ function CustomerFields({ value, onChange }: { value: Omit<Customer, 'id'>; onCh
 function ProductFields({ value, onChange }: { value: Omit<Product, 'id'>; onChange: (value: Omit<Product, 'id'>) => void }) {
   return (
     <>
+      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Référence / Identifiant</label><Input value={value.reference || ''} onChange={(event) => onChange({ ...value, reference: event.target.value })} placeholder="REF-1234" /></div>
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={value.name} onChange={(event) => onChange({ ...value, name: event.target.value })} placeholder="Main-d'oeuvre mécanique" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Type</label><Select value={value.type} onChange={(event) => onChange({ ...value, type: event.target.value })}><option>Service</option><option>Produit</option><option>Forfait</option></Select></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Unité</label><Input value={value.unit} onChange={(event) => onChange({ ...value, unit: event.target.value })} placeholder="heure, forfait, pièce..." /></div>
-      <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Prix HT (€)</label><Input type="number" value={value.unitPrice} onChange={(event) => onChange({ ...value, unitPrice: Number(event.target.value) })} placeholder="0" /></div>
-      <div><label className="mb-1 block text-xs font-medium text-muted-foreground">TVA (%)</label><Input type="number" value={value.taxRate} onChange={(event) => onChange({ ...value, taxRate: Number(event.target.value) })} placeholder="20" /></div>
+      <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Prix TTC (€)</label><Input type="number" min={0} step="any" value={Math.round(value.unitPrice * (1 + value.taxRate / 100) * 100) / 100} onChange={(event) => onChange({ ...value, unitPrice: Number(event.target.value) / (1 + value.taxRate / 100) })} placeholder="0" /></div>
+      <div><label className="mb-1 block text-xs font-medium text-muted-foreground">TVA (%)</label><Input type="number" value={value.taxRate} onChange={(event) => onChange({ ...value, taxRate: Number(event.target.value), unitPrice: (value.unitPrice * (1 + value.taxRate / 100)) / (1 + Number(event.target.value) / 100) })} placeholder="20" /></div>
     </>
   );
 }
@@ -3285,7 +3447,7 @@ function DocumentFields({
   return (
     <>
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Client</label><Select value={value.customerId} onChange={(event) => onChange({ ...value, customerId: event.target.value })}>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</Select></div>
-      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Article</label><Select value={value.productId} onChange={(event) => onChange({ ...value, productId: event.target.value })}>{products.map((product) => <option key={product.id} value={product.id}>{product.name} — {money(product.unitPrice)}</option>)}</Select></div>
+      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Article</label><Select value={value.productId} onChange={(event) => onChange({ ...value, productId: event.target.value })}>{products.map((product) => <option key={product.id} value={product.id}>{product.name} — {money(product.unitPrice * (1 + product.taxRate / 100))} TTC</option>)}</Select></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Quantité</label><Input type="number" value={value.quantity} onChange={(event) => onChange({ ...value, quantity: Number(event.target.value) })} placeholder="1" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Statut</label><Select value={value.status} onChange={(event) => onChange({ ...value, status: event.target.value })}><option>Brouillon</option><option>Envoyé</option><option>Accepté</option><option>À payer</option><option>Acompte</option><option>Payée</option></Select></div>
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Dossier / Véhicule</label><Select value={value.vehicleId} onChange={(event) => onChange({ ...value, vehicleId: event.target.value })}>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.plate} — {vehicle.model}</option>)}</Select></div>
@@ -3418,7 +3580,7 @@ function DocumentEditDialog({
                 {draft.lines.map((line, index) => (
                   <tr key={`${line.productId}-${index}`}>
                     <td className="px-3 py-2">
-                      <Select value={line.productId} onChange={(event) => {
+                      <Select value={line.productId || ''} onChange={(event) => {
                         const product = products.find((item) => item.id === event.target.value);
                         setDraft({ ...draft, lines: draft.lines.map((item, i) => i === index ? { ...item, productId: event.target.value, unitPrice: product?.unitPrice ?? item.unitPrice, taxRate: product?.taxRate ?? item.taxRate } : item) });
                       }}>
@@ -3436,7 +3598,7 @@ function DocumentEditDialog({
               </tbody>
             </table>
             <div className="border-t border-border px-3 py-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setDraft({ ...draft, lines: [...draft.lines, { productId: products[0]?.id ?? '', quantity: 1, unitPrice: products[0]?.unitPrice ?? 0, taxRate: products[0]?.taxRate ?? 20 }] })}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setDraft({ ...draft, lines: [...draft.lines, { id: id('l'), productId: products[0]?.id ?? '', reference: products[0]?.reference || '', name: products[0]?.name || '', quantity: 1, unitPrice: products[0]?.unitPrice ?? 0, taxRate: products[0]?.taxRate ?? 20 }] })}>
                 <Plus size={14} /> Ajouter une ligne
               </Button>
             </div>
@@ -4016,7 +4178,7 @@ function DetailOverlay({
           ['Nom', product.name],
           ['Type', product.type],
           ['Unité', product.unit],
-          ['Prix HT', money(product.unitPrice)],
+          ['Prix TTC', money(product.unitPrice * (1 + product.taxRate / 100))],
           ['TVA', `${product.taxRate}%`],
         ]} />}
         {!editing && quote && <DocumentDetail document={quote} customers={customers} vehicles={vehicles} products={products} onOpen={onOpen} />}
@@ -4067,8 +4229,8 @@ function DocumentDetail({ document, customers, vehicles, products, onOpen }: { d
           <Car size={14} className="text-muted-foreground" /> Ouvrir le véhicule
         </Button>
         {document.lines.map((line) => (
-          <Button key={line.productId} variant="outline" size="sm" className="w-full sm:w-auto justify-start gap-2" onClick={() => onOpen('product', line.productId)}>
-            <Package size={14} className="text-muted-foreground" /> Ouvrir {productName(products, line.productId)}
+          <Button key={line.productId} variant="outline" size="sm" className="w-full sm:w-auto justify-start gap-2" onClick={() => onOpen('product', line.productId || '')}>
+            <Package size={14} className="text-muted-foreground" /> Ouvrir {productName(products, line.productId || '')}
           </Button>
         ))}
       </div>
