@@ -607,13 +607,18 @@ export function App() {
           ))}
         </nav>
         <div className="border-t border-border p-4 space-y-3">
-          <div className="rounded-2xl bg-black p-4 text-white">
+          <button
+            type="button"
+            onClick={() => navigateTo('help')}
+            className="w-full rounded-2xl bg-black p-4 text-left text-white transition hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest">
               <Sparkles size={15} />
-              {company.name}
+              Assistant métier
             </div>
-            <p className="mt-2 text-xs leading-5 text-white/70">Garage automobile · Facturation</p>
-          </div>
+            <p className="mt-3 text-xs leading-5 text-white/70">Aujourd’hui orienté garage, extensible demain à d’autres activités.</p>
+            <div className="mt-3 text-xs font-bold text-white">Ouvrir l’assistant →</div>
+          </button>
           <button
             type="button"
             onClick={() => { localStorage.removeItem('invoxa_auth'); setIsLoggedIn(false); }}
@@ -2474,6 +2479,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
       vehicleId: invoice.vehicleId || '',
       paid: invoice.paid,
       status: invoice.status,
+      paymentMethod: invoice.paymentMethod || 'Espèces',
       lines: invoice.lines,
       issueDate: invoice.issueDate || todayStr,
       dueDate: invoice.dueDate || todayStr,
