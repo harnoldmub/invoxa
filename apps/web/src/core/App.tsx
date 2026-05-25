@@ -72,7 +72,7 @@ type Product = { id: string; reference?: string; name: string; type: string; uni
 type Vehicle = { id: string; plate: string; customerId: string; model: string; mileage: number; status: string };
 type LineItem = { id: string; productId?: string; reference: string; name: string; quantity: number; unitPrice: number; taxRate: number };
 type Quote = { id: string; number: string; customerId: string; vehicleId: string; status: string; lines: LineItem[]; issueDate?: string; validUntil?: string; notes?: string };
-type Invoice = { id: string; number: string; customerId: string; customerReference?: string; vehicleId: string; paid: number; status: string; lines: LineItem[]; issueDate?: string; dueDate?: string; paymentDate?: string; notes?: string };
+type Invoice = { id: string; number: string; customerId: string; customerReference?: string; vehicleId: string; paid: number; status: string; paymentMethod?: string; lines: LineItem[]; issueDate?: string; dueDate?: string; paymentDate?: string; notes?: string };
 type Payment = { id: string; invoiceId: string; amount: number; method: string; date: string };
 type Template = {
   id: string;
@@ -125,6 +125,19 @@ const activities = [
 const money = (value: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string) => new Intl.DateTimeFormat('fr-FR').format(new Date(value));
 const id = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+const generateCustomerReference = (customers: Customer[]) => {
+  let maxRef = 0;
+  customers.forEach((c) => {
+    if (c.reference && c.reference.startsWith('DE0')) {
+      const numStr = c.reference.substring(3);
+      const num = parseInt(numStr, 10);
+      if (!isNaN(num) && num > maxRef) {
+        maxRef = num;
+      }
+    }
+  });
+  return `DE0${String(maxRef + 1).padStart(4, '0')}`;
+};
 const matches = (query: string, values: Array<string | number>) => values.join(' ').toLowerCase().includes(query.trim().toLowerCase());
 
 const customerName = (customers: Customer[], idValue: string) => customers.find((customer) => customer.id === idValue)?.name ?? 'Client inconnu';
@@ -224,7 +237,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-const defaultCgv = "Les marchandises livrées demeurent notre propriété jusqu’au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d’intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d’escompte pour paiement anticipé. Rétraction et politique de remboursement : un achat effectué en magasin est réputé ferme et définitif.";
+const defaultCgv = "Les marchandises livrées demeurent notre propriété jusqu'au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d'intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Un achat effectué en magasin est réputé ferme et définitif. L'acheteur ne pourra retourner un produit acheté en magasin que si celui-ci a un défaut ou un vice caché qui le rend inutilisable. Dans les autres cas (changement d'avis, erreur de choix technique, erreur de diagnostic etc...) la société CENTER AUTO PIECES assure une politique commerciale d'échange ou de remboursement par avoir si les conditions de retours sont intégralement respectées : 1) État du produit neuf et complet, sachet plastique non ouvert 2) Conformité de l'emballage d'origine 3) Délai de rétractation de 1 mois (hors pièces électriques et commandes spécifiques de pièces non stockées).";
 const defaultSmtp = { host: '', port: '587', user: '', password: '', from: '' };
 
 const initialGarages: GarageProfile[] = [
@@ -244,8 +257,8 @@ const initialAllData: Record<string, GarageData> = {
       { id: 'v3', plate: 'PT-902-RS', customerId: 'c3', model: 'Mercedes Vito', mileage: 241850, status: 'Prêt' },
     ],
     invoices: [
-      { id: 'f1', number: 'FA2605-7B3A', customerId: 'c2', customerReference: 'DE00002', vehicleId: 'v2', paid: 389, status: 'Payée', lines: [{ id: 'l1', productId: 'p2', reference: 'REF-8U2M', name: 'Kit de freins', quantity: 4.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-01', dueDate: '2026-05-31' },
-      { id: 'f2', number: 'FA2605-9D4C', customerId: 'c1', customerReference: 'DE00001', vehicleId: 'v1', paid: 250, status: 'Acompte', lines: [{ id: 'l2', productId: 'p1', reference: 'REF-4X9P', name: 'Vidange complète', quantity: 1, unitPrice: 89, taxRate: 20 }, { id: 'l3', productId: 'p3', reference: 'REF-2K7L', name: 'Filtre à air', quantity: 2, unitPrice: 64, taxRate: 20 }, { id: 'l4', productId: 'p2', reference: 'REF-8U2M', name: "Main-d'oeuvre mécanique", quantity: 1.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-10', dueDate: '2026-06-10', notes: 'Acompte de 250 EUR recu le 13 mai.' },
+      { id: 'f1', number: 'FA2605-7B3A', customerId: 'c2', customerReference: 'DE00002', vehicleId: 'v2', paid: 389, status: 'Payée', paymentMethod: 'Carte', lines: [{ id: 'l1', productId: 'p2', reference: 'REF-8U2M', name: 'Kit de freins', quantity: 4.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-01', dueDate: '2026-05-31' },
+      { id: 'f2', number: 'FA2605-9D4C', customerId: 'c1', customerReference: 'DE00001', vehicleId: 'v1', paid: 250, status: 'Acompte', paymentMethod: 'Virement', lines: [{ id: 'l2', productId: 'p1', reference: 'REF-4X9P', name: 'Vidange complète', quantity: 1, unitPrice: 89, taxRate: 20 }, { id: 'l3', productId: 'p3', reference: 'REF-2K7L', name: 'Filtre à air', quantity: 2, unitPrice: 64, taxRate: 20 }, { id: 'l4', productId: 'p2', reference: 'REF-8U2M', name: "Main-d'oeuvre mécanique", quantity: 1.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-10', dueDate: '2026-06-10', notes: 'Acompte de 250 EUR recu le 13 mai.' },
     ],
     payments: [
       { id: 'pay1', invoiceId: 'f1', amount: 389, method: 'Carte', date: '2026-05-12' },
@@ -948,10 +961,10 @@ function CrmPage({
       setSelectedCustomerId('');
     }
   }, [filtered, selectedCustomerId]);
-  const openCreate = () => { setEditing(null); setForm(empty); setModalOpen(true); };
+  const openCreate = () => { setEditing(null); setForm({ ...empty, reference: generateCustomerReference(customers) }); setModalOpen(true); };
   const openEdit = (c: Customer) => { setEditing(c); setForm({ name: c.name, reference: c.reference, companyName: c.companyName, email: c.email, phone: c.phone, mobile: c.mobile, type: c.type, taxNumber: c.taxNumber, paymentTerms: c.paymentTerms, currency: c.currency, website: c.website, billingAddress: c.billingAddress, shippingAddress: c.shippingAddress, notes: c.notes }); setModalOpen(true); };
   const closeModal = () => setModalOpen(false);
-  const handleSubmit = () => { if (!form.name) return; if (editing) { onUpdate(editing.id, form); } else { onCreate(form); } closeModal(); };
+  const handleSubmit = () => { if (!form.name || !form.reference) return; if (editing) { onUpdate(editing.id, form); } else { onCreate(form); } closeModal(); };
   const selectedCustomer = selectedCustomerId ? customers.find((customer) => customer.id === selectedCustomerId) ?? filtered[0] : undefined;
   const selectedQuotes = selectedCustomer ? quotes.filter((quote) => quote.customerId === selectedCustomer.id) : [];
   const selectedInvoices = selectedCustomer ? invoices.filter((invoice) => invoice.customerId === selectedCustomer.id) : [];
@@ -1372,7 +1385,7 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
                     <div className="truncate font-semibold">{product.reference ? `${product.reference} - ${product.name}` : product.name}</div>
                     <div className="mt-1 text-xs text-muted-foreground">{product.type} · {product.unit}{rowInactive ? ' · Inactif' : ''}</div>
                   </div>
-                  <div className="font-semibold">{money(product.unitPrice)}</div>
+                  <div className="font-semibold">{money(product.unitPrice * (1 + product.taxRate / 100))} TTC</div>
                 </button>
               );
             })}
@@ -1426,7 +1439,7 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
                 <div>
                   <h3 className="mb-5 text-lg font-semibold">Informations sur les ventes</h3>
                   <div className="grid max-w-4xl grid-cols-[210px_1fr] gap-y-4 text-sm">
-                    <span className="text-muted-foreground">Prix de vente</span><span className="font-medium">{money(selectedProduct.unitPrice)}</span>
+                    <span className="text-muted-foreground">Prix de vente TTC</span><span className="font-medium">{money(selectedProduct.unitPrice * (1 + selectedProduct.taxRate / 100))}</span>
                     <span className="text-muted-foreground">Compte de vente</span><span className="font-medium">Ventes</span>
                     <span className="text-muted-foreground">Unité d’utilisation</span><span className="font-medium">{selectedProduct.unit}</span>
                     <span className="text-muted-foreground">TVA</span><span className="font-medium">{selectedProduct.taxRate}%</span>
@@ -1593,7 +1606,7 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
   const perPage = 10;
 
   // Inline client modal
-  const emptyClientForm = { name: '', companyName: '', email: '', phone: '', mobile: '', type: 'Particulier', taxNumber: '', paymentTerms: 'Comptant', currency: 'EUR', website: '', billingAddress: '', shippingAddress: '', notes: '' };
+  const emptyClientForm = { reference: '', name: '', companyName: '', email: '', phone: '', mobile: '', type: 'Particulier', taxNumber: '', paymentTerms: 'Comptant', currency: 'EUR', website: '', billingAddress: '', shippingAddress: '', notes: '' };
   const [clientModalOpen, setClientModalOpen] = useState(false);
   const [clientForm, setClientForm] = useState(emptyClientForm);
 
@@ -1627,7 +1640,7 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
     Brouillon: 'bg-gray-100 text-gray-600 border border-gray-200',
   };
 
-  const openClientModal = () => { setClientForm(emptyClientForm); setClientModalOpen(true); };
+  const openClientModal = () => { setClientForm({ ...emptyClientForm, reference: generateCustomerReference(customers) }); setClientModalOpen(true); };
   const openProductModal = () => { setProductForm(emptyProductForm); setProductModalOpen(true); };
 
   const handleCreate = (status: string) => {
@@ -1705,31 +1718,38 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
                 <div className="overflow-hidden rounded-lg border border-border">
                   <table className="w-full text-sm">
                     <thead><tr className="border-b border-border bg-muted">
+                      <th className="w-32 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Identifiant</th>
                       <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Article</th>
                       <th className="w-20 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Qté</th>
-                      <th className="w-28 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix HT</th>
+                      <th className="w-28 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix TTC</th>
                       <th className="w-20 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA%</th>
                       <th className="w-8 px-3 py-2.5"></th>
                     </tr></thead>
                     <tbody className="divide-y divide-border">
                       {form.lines.map((line, index) => (
                         <tr key={`${line.productId}-${index}`} className="bg-white transition-colors hover:bg-muted/30">
+                          <td className="px-3 py-2.5"><Input value={line.reference || ''} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, reference: e.target.value } : it) })} placeholder="REF..." /></td>
                           <td className="px-3 py-2.5">
                             <SearchCombobox
-                              items={products.map((p) => ({ id: p.id, label: p.name, sublabel: money(p.unitPrice) + ' / ' + p.unit }))}
+                              items={products.map((p) => ({ id: p.id, label: p.name, sublabel: p.reference ? `[${p.reference}] ${money(p.unitPrice * (1 + p.taxRate / 100))} TTC` : `${money(p.unitPrice * (1 + p.taxRate / 100))} TTC` }))}
                               value={line.productId || ''}
                               onChange={(pid) => {
                                 const np = products.find((p) => p.id === pid);
-                                setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, productId: pid, unitPrice: np?.unitPrice ?? it.unitPrice, taxRate: np?.taxRate ?? it.taxRate } : it) });
+                                setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, productId: pid, name: np?.name ?? it.name, reference: np?.reference ?? it.reference, unitPrice: np?.unitPrice ?? it.unitPrice, taxRate: np?.taxRate ?? it.taxRate } : it) });
                               }}
                               placeholder="Choisir un article..."
                               actionLabel="Nouvel article"
                               onAction={openProductModal}
                             />
+                            {(!line.productId || line.name !== products.find(p => p.id === line.productId)?.name) && (
+                              <div className="mt-2">
+                                <Input value={line.name || ''} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, name: e.target.value } : it) })} placeholder="Nom de l'article libre..." />
+                              </div>
+                            )}
                           </td>
                           <td className="px-3 py-2.5"><Input type="number" value={line.quantity} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, quantity: Number(e.target.value) } : it) })} /></td>
-                          <td className="px-3 py-2.5"><Input type="number" value={line.unitPrice} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) } : it) })} /></td>
-                          <td className="px-3 py-2.5"><Input type="number" value={line.taxRate} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value) } : it) })} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" min={0} step="any" value={Math.round(line.unitPrice * (1 + line.taxRate / 100) * 100) / 100} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) / (1 + it.taxRate / 100) } : it) })} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" value={line.taxRate} onChange={(e) => setForm({ ...form, lines: form.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value), unitPrice: (it.unitPrice * (1 + it.taxRate / 100)) / (1 + Number(e.target.value) / 100) } : it) })} /></td>
                           <td className="px-3 py-2.5 text-center">
                             <button type="button" onClick={() => setForm({ ...form, lines: form.lines.filter((_it, i) => i !== index) })} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>
                           </td>
@@ -1764,12 +1784,13 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
 
         {/* Inline modals */}
         <EditDialog title="Nouveau client" open={clientModalOpen} onClose={() => setClientModalOpen(false)} onSubmit={() => {
-          if (!clientForm.name) return;
+          if (!clientForm.name || !clientForm.reference) return;
           const newId = onCreateCustomer(clientForm);
           setForm((f) => ({ ...f, customerId: newId }));
           setClientModalOpen(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Référence client <span className="text-red-500">*</span></label><Input value={clientForm.reference || ''} onChange={(e) => setClientForm({ ...clientForm, reference: e.target.value })} placeholder="DE00001" /></div>
             <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} placeholder="Martin Services" /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Société</label><Input value={clientForm.companyName} onChange={(e) => setClientForm({ ...clientForm, companyName: e.target.value })} /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</label><Input type="email" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} /></div>
@@ -1785,11 +1806,12 @@ function QuotesPage({ customers, vehicles, products, templates, quotes, query, c
           setProductModalOpen(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Référence / Identifiant</label><Input value={productForm.reference || ''} onChange={(e) => setProductForm({ ...productForm, reference: e.target.value })} placeholder="REF-123" /></div>
             <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} placeholder="Main-d'oeuvre" /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</label><Select value={productForm.type} onChange={(e) => setProductForm({ ...productForm, type: e.target.value })}><option>Service</option><option>Produit</option><option>Forfait</option></Select></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unité</label><Input value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} /></div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix HT (€)</label><Input type="number" value={productForm.unitPrice} onChange={(e) => setProductForm({ ...productForm, unitPrice: Number(e.target.value) })} /></div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA (%)</label><Input type="number" value={productForm.taxRate} onChange={(e) => setProductForm({ ...productForm, taxRate: Number(e.target.value) })} /></div>
+            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix TTC (€)</label><Input type="number" min={0} step="any" value={Math.round(productForm.unitPrice * (1 + productForm.taxRate / 100) * 100) / 100} onChange={(e) => setProductForm({ ...productForm, unitPrice: Number(e.target.value) / (1 + productForm.taxRate / 100) })} /></div>
+            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA (%)</label><Input type="number" value={productForm.taxRate} onChange={(e) => setProductForm({ ...productForm, taxRate: Number(e.target.value), unitPrice: (productForm.unitPrice * (1 + productForm.taxRate / 100)) / (1 + Number(e.target.value) / 100) })} /></div>
           </div>
         </EditDialog>
       </div>
@@ -2095,7 +2117,11 @@ function InvoicePreview({ form, customers, vehicles, products, template = defaul
   const customer = customers.find((c) => c.id === form.customerId);
   const vehicle = vehicles.find((v) => v.id === form.vehicleId);
   const subtotal = form.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-  const tax = form.lines.reduce((s, l) => s + l.quantity * l.unitPrice * (l.taxRate / 100), 0);
+  const taxByRate: Record<number, number> = {};
+  form.lines.forEach((l) => {
+    taxByRate[l.taxRate] = (taxByRate[l.taxRate] ?? 0) + l.quantity * l.unitPrice * (l.taxRate / 100);
+  });
+  const tax = Object.values(taxByRate).reduce((s, amt) => s + amt, 0);
   const total = subtotal + tax;
   const remaining = Math.max(0, total - form.paid);
   const today = new Date().toLocaleDateString('fr-FR');
@@ -2176,10 +2202,12 @@ function InvoicePreview({ form, customers, vehicles, products, template = defaul
                   <td className="px-2 py-1">Total HT</td>
                   <td className="px-2 py-1 text-right">{money(subtotal)}</td>
                 </tr>
-                <tr>
-                  <td className="px-2 py-1">Total TVA 20%</td>
-                  <td className="px-2 py-1 text-right">{money(tax)}</td>
-                </tr>
+                {Object.entries(taxByRate).map(([rate, amount]) => (
+                  <tr key={rate}>
+                    <td className="px-2 py-1">Total TVA {rate}%</td>
+                    <td className="px-2 py-1 text-right">{money(amount)}</td>
+                  </tr>
+                ))}
                 <tr className="bg-[#c0c0c0] font-bold">
                   <td className="px-2 py-1.5">Total TTC</td>
                   <td className="px-2 py-1.5 text-right">{money(total)}</td>
@@ -2376,7 +2404,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
   const yearSuffix = currentDate.getFullYear().toString().slice(-2);
   const monthSuffix = (currentDate.getMonth() + 1).toString().padStart(2, '0');
   const invoicePrefix = `FA${yearSuffix}${monthSuffix}-`;
-  const emptyForm = { number: '', customerId: '', customerReference: '', vehicleId: '', paid: 0, status: 'Payée', lines: [] as LineItem[], issueDate: todayStr, dueDate: todayStr, paymentDate: todayStr, notes: '' };
+  const emptyForm = { number: '', customerId: '', customerReference: '', vehicleId: '', paid: 0, status: 'Payée', paymentMethod: 'Espèces', lines: [] as LineItem[], issueDate: todayStr, dueDate: todayStr, paymentDate: todayStr, notes: '' };
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState<Invoice | null>(null);
   const [emailInvoice, setEmailInvoice] = useState<Invoice | null>(null);
@@ -2421,7 +2449,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
   const handleSave = () => {
     if (!form.number.trim() || !form.customerId || form.lines.length === 0) return;
     const finalNumber = form.number.startsWith(invoicePrefix) ? form.number : `${invoicePrefix}${form.number}`;
-    const patch = { number: finalNumber.trim(), customerId: form.customerId, customerReference: form.customerReference, vehicleId: form.vehicleId, paid: total, status: 'Payée', lines: form.lines, issueDate: form.issueDate, dueDate: form.dueDate, paymentDate: form.paymentDate, notes: form.notes };
+    const patch = { number: finalNumber.trim(), customerId: form.customerId, customerReference: form.customerReference, vehicleId: form.vehicleId, paid: form.status === 'Payée' ? total : (form.paid || 0), status: form.status, paymentMethod: form.paymentMethod, lines: form.lines, issueDate: form.issueDate, dueDate: form.dueDate, paymentDate: form.paymentDate, notes: form.notes };
     if (editing) {
       onUpdate(editing.id, patch);
     } else {
@@ -2519,7 +2547,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                     }}
                     placeholder="Sélectionner un client..."
                     actionLabel="Nouveau client"
-                    onAction={() => { setClientForm(emptyClientForm); setClientModalOpen(true); }}
+                    onAction={() => { setClientForm({ ...emptyClientForm, reference: generateCustomerReference(customers) }); setClientModalOpen(true); }}
                   />
                 </div>
                 <div>
@@ -2536,7 +2564,26 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                   placeholder="Sélectionner un dossier..."
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 sm:gap-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</label>
+                  <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                    <option>Brouillon</option>
+                    <option>Envoyée</option>
+                    <option>À payer</option>
+                    <option>Payée</option>
+                    <option>Annulée</option>
+                  </Select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Paiement</label>
+                  <Select value={form.paymentMethod || 'Espèces'} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
+                    <option>Espèces</option>
+                    <option>Carte</option>
+                    <option>Virement</option>
+                    <option>Chèque</option>
+                  </Select>
+                </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date d'émission <span className="text-red-500">*</span></label>
                   <Input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
@@ -2570,7 +2617,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                           <td className="px-3 py-2.5"><Input value={line.name || ''} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, name: e.target.value } : it) }))} placeholder="Nom de l'article" /></td>
                           <td className="px-3 py-2.5"><Input type="number" min={0} step="any" value={line.quantity} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, quantity: Number(e.target.value) } : it) }))} /></td>
                           <td className="px-3 py-2.5"><Input type="number" min={0} step="any" value={Math.round(line.unitPrice * (1 + line.taxRate / 100) * 100) / 100} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) / (1 + it.taxRate / 100) } : it) }))} /></td>
-                          <td className="px-3 py-2.5"><Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value) } : it) }))} /></td>
+                          <td className="px-3 py-2.5"><Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value), unitPrice: (it.unitPrice * (1 + it.taxRate / 100)) / (1 + Number(e.target.value) / 100) } : it) }))} /></td>
                           <td className="px-3 py-2.5 text-center">
                             <div className="flex items-center justify-center gap-1">
                               {!line.productId && (
@@ -2636,7 +2683,7 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
                           </div>
                           <div>
                             <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">TVA%</label>
-                            <Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value) } : it) }))} />
+                            <Input type="number" min={0} max={100} value={line.taxRate} onChange={(e) => setForm((prev) => ({ ...prev, lines: prev.lines.map((it, i) => i === index ? { ...it, taxRate: Number(e.target.value), unitPrice: (it.unitPrice * (1 + it.taxRate / 100)) / (1 + Number(e.target.value) / 100) } : it) }))} />
                           </div>
                         </div>
                       </div>
@@ -2676,12 +2723,13 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
 
         {/* Inline modals */}
         <EditDialog title="Nouveau client" open={clientModalOpen} onClose={() => setClientModalOpen(false)} onSubmit={() => {
-          if (!clientForm.name) return;
+          if (!clientForm.name || !clientForm.reference) return;
           const newId = onCreateCustomer(clientForm);
           setForm((f) => ({ ...f, customerId: newId }));
           setClientModalOpen(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Référence client <span className="text-red-500">*</span></label><Input value={clientForm.reference || ''} onChange={(e) => setClientForm({ ...clientForm, reference: e.target.value })} placeholder="DE00001" /></div>
             <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} placeholder="Martin Services" /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Société</label><Input value={clientForm.companyName} onChange={(e) => setClientForm({ ...clientForm, companyName: e.target.value })} /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</label><Input type="email" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} /></div>
@@ -2697,11 +2745,12 @@ function InvoicesPage({ customers, vehicles, products, templates, invoices, quer
           setProductModalOpen(false);
         }}>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Référence / Identifiant</label><Input value={productForm.reference || ''} onChange={(e) => setProductForm({ ...productForm, reference: e.target.value })} placeholder="REF-123" /></div>
             <div className="col-span-2"><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} placeholder="Main-d'oeuvre" /></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</label><Select value={productForm.type} onChange={(e) => setProductForm({ ...productForm, type: e.target.value })}><option>Service</option><option>Produit</option><option>Forfait</option></Select></div>
             <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unité</label><Input value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} /></div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix HT (€)</label><Input type="number" value={productForm.unitPrice} onChange={(e) => setProductForm({ ...productForm, unitPrice: Number(e.target.value) })} /></div>
-            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA (%)</label><Input type="number" value={productForm.taxRate} onChange={(e) => setProductForm({ ...productForm, taxRate: Number(e.target.value) })} /></div>
+            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prix TTC (€)</label><Input type="number" min={0} step="any" value={Math.round(productForm.unitPrice * (1 + productForm.taxRate / 100) * 100) / 100} onChange={(e) => setProductForm({ ...productForm, unitPrice: Number(e.target.value) / (1 + productForm.taxRate / 100) })} /></div>
+            <div><label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">TVA (%)</label><Input type="number" value={productForm.taxRate} onChange={(e) => setProductForm({ ...productForm, taxRate: Number(e.target.value), unitPrice: (productForm.unitPrice * (1 + productForm.taxRate / 100)) / (1 + Number(e.target.value) / 100) })} /></div>
           </div>
         </EditDialog>
       </div>
@@ -3349,7 +3398,7 @@ function HelpPage({ setActivePage }: { setActivePage: (page: Page) => void }) {
 function CustomerFields({ value, onChange }: { value: Omit<Customer, 'id'>; onChange: (value: Omit<Customer, 'id'>) => void }) {
   return (
     <>
-      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Référence client</label><Input value={value.reference || ''} onChange={(event) => onChange({ ...value, reference: event.target.value })} placeholder="CLI-001" /></div>
+      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Référence client <span className="text-red-500">*</span></label><Input value={value.reference || ''} onChange={(event) => onChange({ ...value, reference: event.target.value })} placeholder="CLI-001" /></div>
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={value.name} onChange={(event) => onChange({ ...value, name: event.target.value })} placeholder="Martin Services" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Société</label><Input value={value.companyName} onChange={(event) => onChange({ ...value, companyName: event.target.value })} placeholder="Martin Services SARL" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Type</label><Select value={value.type} onChange={(event) => onChange({ ...value, type: event.target.value })}><option>Entreprise</option><option>Particulier</option><option>Professionnel</option><option>Flotte</option></Select></div>
@@ -3374,8 +3423,8 @@ function ProductFields({ value, onChange }: { value: Omit<Product, 'id'>; onChan
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={value.name} onChange={(event) => onChange({ ...value, name: event.target.value })} placeholder="Main-d'oeuvre mécanique" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Type</label><Select value={value.type} onChange={(event) => onChange({ ...value, type: event.target.value })}><option>Service</option><option>Produit</option><option>Forfait</option></Select></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Unité</label><Input value={value.unit} onChange={(event) => onChange({ ...value, unit: event.target.value })} placeholder="heure, forfait, pièce..." /></div>
-      <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Prix HT (€)</label><Input type="number" value={value.unitPrice} onChange={(event) => onChange({ ...value, unitPrice: Number(event.target.value) })} placeholder="0" /></div>
-      <div><label className="mb-1 block text-xs font-medium text-muted-foreground">TVA (%)</label><Input type="number" value={value.taxRate} onChange={(event) => onChange({ ...value, taxRate: Number(event.target.value) })} placeholder="20" /></div>
+      <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Prix TTC (€)</label><Input type="number" min={0} step="any" value={Math.round(value.unitPrice * (1 + value.taxRate / 100) * 100) / 100} onChange={(event) => onChange({ ...value, unitPrice: Number(event.target.value) / (1 + value.taxRate / 100) })} placeholder="0" /></div>
+      <div><label className="mb-1 block text-xs font-medium text-muted-foreground">TVA (%)</label><Input type="number" value={value.taxRate} onChange={(event) => onChange({ ...value, taxRate: Number(event.target.value), unitPrice: (value.unitPrice * (1 + value.taxRate / 100)) / (1 + Number(event.target.value) / 100) })} placeholder="20" /></div>
     </>
   );
 }
@@ -3398,7 +3447,7 @@ function DocumentFields({
   return (
     <>
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Client</label><Select value={value.customerId} onChange={(event) => onChange({ ...value, customerId: event.target.value })}>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</Select></div>
-      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Article</label><Select value={value.productId} onChange={(event) => onChange({ ...value, productId: event.target.value })}>{products.map((product) => <option key={product.id} value={product.id}>{product.name} — {money(product.unitPrice)}</option>)}</Select></div>
+      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Article</label><Select value={value.productId} onChange={(event) => onChange({ ...value, productId: event.target.value })}>{products.map((product) => <option key={product.id} value={product.id}>{product.name} — {money(product.unitPrice * (1 + product.taxRate / 100))} TTC</option>)}</Select></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Quantité</label><Input type="number" value={value.quantity} onChange={(event) => onChange({ ...value, quantity: Number(event.target.value) })} placeholder="1" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Statut</label><Select value={value.status} onChange={(event) => onChange({ ...value, status: event.target.value })}><option>Brouillon</option><option>Envoyé</option><option>Accepté</option><option>À payer</option><option>Acompte</option><option>Payée</option></Select></div>
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Dossier / Véhicule</label><Select value={value.vehicleId} onChange={(event) => onChange({ ...value, vehicleId: event.target.value })}>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.plate} — {vehicle.model}</option>)}</Select></div>
@@ -4129,7 +4178,7 @@ function DetailOverlay({
           ['Nom', product.name],
           ['Type', product.type],
           ['Unité', product.unit],
-          ['Prix HT', money(product.unitPrice)],
+          ['Prix TTC', money(product.unitPrice * (1 + product.taxRate / 100))],
           ['TVA', `${product.taxRate}%`],
         ]} />}
         {!editing && quote && <DocumentDetail document={quote} customers={customers} vehicles={vehicles} products={products} onOpen={onOpen} />}
