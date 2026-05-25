@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { Tenant, RequestContext } from '../../../common/request-context';
 import { ZodValidationPipe } from '../../../common/zod-validation.pipe';
@@ -35,5 +35,16 @@ export class GarageVehiclesController {
   @UsePipes(new ZodValidationPipe(vehicleSchema))
   create(@Tenant() ctx: RequestContext, @Body() body: z.infer<typeof vehicleSchema>) {
     return this.vehicles.create(ctx, body);
+  }
+
+  @Patch(':id')
+  @UsePipes(new ZodValidationPipe(vehicleSchema.partial()))
+  update(@Tenant() ctx: RequestContext, @Param('id') id: string, @Body() body: Partial<z.infer<typeof vehicleSchema>>) {
+    return this.vehicles.update(ctx, id, body);
+  }
+
+  @Delete(':id')
+  remove(@Tenant() ctx: RequestContext, @Param('id') id: string) {
+    return this.vehicles.remove(ctx, id);
   }
 }

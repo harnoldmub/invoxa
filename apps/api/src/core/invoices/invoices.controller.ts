@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { Tenant, RequestContext } from '../../common/request-context';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -46,5 +46,16 @@ export class InvoicesController {
   @UsePipes(new ZodValidationPipe(invoiceSchema))
   create(@Tenant() ctx: RequestContext, @Body() body: z.infer<typeof invoiceSchema>) {
     return this.invoices.create(ctx, body);
+  }
+
+  @Patch(':id')
+  @UsePipes(new ZodValidationPipe(invoiceSchema.partial()))
+  update(@Tenant() ctx: RequestContext, @Param('id') id: string, @Body() body: Partial<z.infer<typeof invoiceSchema>>) {
+    return this.invoices.update(ctx, id, body);
+  }
+
+  @Delete(':id')
+  remove(@Tenant() ctx: RequestContext, @Param('id') id: string) {
+    return this.invoices.remove(ctx, id);
   }
 }

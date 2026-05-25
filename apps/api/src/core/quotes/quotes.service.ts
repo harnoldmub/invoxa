@@ -46,4 +46,41 @@ export class QuotesService {
       include: { lines: true },
     });
   }
+
+  async update(ctx: RequestContext, id: string, input: any) {
+    const { lines, ...data } = input;
+    const computed = lines ? totals(lines) : {};
+    return this.prisma.$transaction(async (tx) => {
+      if (lines) {
+        await tx.quoteLine.deleteMany({ where: { tenantId: ctx.tenantId, quoteId: id } });
+      }
+      return tx.quote.update({
+        where: { id, tenantId: ctx.tenantId },
+        data: {
+          ...data,
+          ...computed,
+          ...(lines
+            ? {
+              lines: {
+                create: lines.map((line: any) => ({
+                  tenantId: ctx.tenantId,
+                  ...line,
+                  total: line.quantity * line.unitPrice * (1 + line.taxRate / 100),
+                })),
+              },
+            }
+            : {}),
+        },
+        include: { lines: true },
+      });
+    });
+  }
+
+  async remove(ctx: RequestContext, id: string) {
+    await this.prisma.$transaction([
+      this.prisma.quoteLine.deleteMany({ where: { tenantId: ctx.tenantId, quoteId: id } }),
+      this.prisma.quote.delete({ where: { id, tenantId: ctx.tenantId } }),
+    ]);
+    return { deleted: true };
+  }
 }

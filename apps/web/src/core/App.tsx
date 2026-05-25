@@ -46,6 +46,7 @@ import { Dialog } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { GarageWorkspace } from '../modules/garage/pages/GarageWorkspace';
+import { api } from './api/client';
 
 type Page = 'dashboard' | 'crm' | 'catalog' | 'invoices' | 'payments' | 'garage' | 'templates' | 'settings' | 'help';
 type GarageProfile = { id: string; name: string; address: string; postalCity: string; phone: string; email: string; legal: string; registration: string; vat: string; cgv: string; smtp: { host: string; port: string; user: string; password: string; from: string } };
@@ -105,6 +106,14 @@ type Template = {
 };
 type CustomField = { id: string; entity: string; label: string; type: string; activity: string };
 type RelationTarget = { kind: 'customer' | 'product' | 'quote' | 'invoice' | 'vehicle' | 'payment'; id: string } | null;
+type BackendAppState = {
+  garages: GarageProfile[];
+  activeGarageId: string;
+  allGarageData: Record<string, GarageData>;
+  products: Product[];
+  templates: Template[];
+  fields: CustomField[];
+};
 
 const nav: Array<{ key: Page; label: string; icon: typeof LayoutDashboard }> = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -333,6 +342,44 @@ export function App() {
     { id: 'cf1', entity: 'Véhicule', label: 'Garantie constructeur', type: 'Date', activity: 'Garage' },
     { id: 'cf2', entity: 'Client', label: 'Code comptable', type: 'Texte', activity: 'Général' },
   ]);
+  const apiHydrated = useRef(false);
+  const apiSaveTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+    api<BackendAppState>('/app/state')
+      .then((state) => {
+        if (cancelled) return;
+        if (state.garages?.length) setGarages(state.garages);
+        if (state.activeGarageId) setActiveGarageId(state.activeGarageId);
+        if (state.allGarageData) setAllGarageData(state.allGarageData);
+        if (state.products) setProducts(state.products);
+        if (state.templates) setTemplates(state.templates);
+        if (state.fields) setFields(state.fields);
+        apiHydrated.current = true;
+        flash('Données synchronisées');
+      })
+      .catch(() => {
+        apiHydrated.current = true;
+        flash('Mode local actif');
+      });
+    return () => { cancelled = true; };
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !apiHydrated.current) return;
+    if (apiSaveTimer.current) window.clearTimeout(apiSaveTimer.current);
+    apiSaveTimer.current = window.setTimeout(() => {
+      api<BackendAppState>('/app/state', {
+        method: 'PUT',
+        body: JSON.stringify({ garages, activeGarageId, allGarageData, products, templates, fields }),
+      }).catch(() => flash('Sauvegarde locale, API indisponible'));
+    }, 600);
+    return () => {
+      if (apiSaveTimer.current) window.clearTimeout(apiSaveTimer.current);
+    };
+  }, [isLoggedIn, garages, activeGarageId, allGarageData, products, templates, fields]);
 
   useEffect(() => {
     if (!query) {

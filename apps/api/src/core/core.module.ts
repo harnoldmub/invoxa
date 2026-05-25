@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SettingsModule } from './settings/settings.module';
 import { CustomFieldsModule } from './custom-fields/custom-fields.module';
 import { DocumentsModule } from './documents/documents.module';
+import { AppStateModule } from './app-state/app-state.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { DocumentsModule } from './documents/documents.module';
     SettingsModule,
     CustomFieldsModule,
     DocumentsModule,
+    AppStateModule,
   ],
 })
 export class CoreModule {}

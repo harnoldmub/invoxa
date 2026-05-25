@@ -16,4 +16,12 @@ export class CatalogService {
   create(ctx: RequestContext, input: any) {
     return this.prisma.product.create({ data: { tenantId: ctx.tenantId, ...input } });
   }
+
+  update(ctx: RequestContext, id: string, input: any) {
+    return this.prisma.product.update({ where: { id, tenantId: ctx.tenantId }, data: input });
+  }
+
+  remove(ctx: RequestContext, id: string) {
+    return this.prisma.product.update({ where: { id, tenantId: ctx.tenantId }, data: { active: false } });
+  }
 }

@@ -25,4 +25,19 @@ export class GarageVehiclesService {
   create(ctx: RequestContext, input: any) {
     return this.prisma.garageVehicle.create({ data: { tenantId: ctx.tenantId, ...input } });
   }
+
+  update(ctx: RequestContext, id: string, input: any) {
+    return this.prisma.garageVehicle.update({ where: { id, tenantId: ctx.tenantId }, data: input });
+  }
+
+  async remove(ctx: RequestContext, id: string) {
+    await this.prisma.$transaction([
+      this.prisma.garageWorkOrderPart.deleteMany({ where: { tenantId: ctx.tenantId, workOrder: { vehicleId: id } } }),
+      this.prisma.garageLaborLine.deleteMany({ where: { tenantId: ctx.tenantId, workOrder: { vehicleId: id } } }),
+      this.prisma.garageWorkOrder.deleteMany({ where: { tenantId: ctx.tenantId, vehicleId: id } }),
+      this.prisma.garageIntervention.deleteMany({ where: { tenantId: ctx.tenantId, vehicleId: id } }),
+      this.prisma.garageVehicle.delete({ where: { id, tenantId: ctx.tenantId } }),
+    ]);
+    return { deleted: true };
+  }
 }
