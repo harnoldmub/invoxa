@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { Tenant, RequestContext } from '../../common/request-context';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -26,5 +26,16 @@ export class TemplatesController {
   @UsePipes(new ZodValidationPipe(templateSchema))
   create(@Tenant() ctx: RequestContext, @Body() body: z.infer<typeof templateSchema>) {
     return this.templates.create(ctx, body);
+  }
+
+  @Patch(':id')
+  @UsePipes(new ZodValidationPipe(templateSchema.partial()))
+  update(@Tenant() ctx: RequestContext, @Param('id') id: string, @Body() body: Partial<z.infer<typeof templateSchema>>) {
+    return this.templates.update(ctx, id, body);
+  }
+
+  @Delete(':id')
+  remove(@Tenant() ctx: RequestContext, @Param('id') id: string) {
+    return this.templates.remove(ctx, id);
   }
 }

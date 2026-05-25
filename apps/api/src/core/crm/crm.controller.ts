@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { Tenant, RequestContext } from '../../common/request-context';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -38,6 +38,17 @@ export class CrmController {
     return this.crm.createCustomer(ctx, body);
   }
 
+  @Patch('customers/:id')
+  @UsePipes(new ZodValidationPipe(customerSchema.partial()))
+  updateCustomer(@Tenant() ctx: RequestContext, @Param('id') id: string, @Body() body: Partial<z.infer<typeof customerSchema>>) {
+    return this.crm.updateCustomer(ctx, id, body);
+  }
+
+  @Delete('customers/:id')
+  deleteCustomer(@Tenant() ctx: RequestContext, @Param('id') id: string) {
+    return this.crm.deleteCustomer(ctx, id);
+  }
+
   @Get('customers/:id/contacts')
   contacts(@Tenant() ctx: RequestContext, @Param('id') customerId: string) {
     return this.crm.contacts(ctx, customerId);
@@ -47,5 +58,16 @@ export class CrmController {
   @UsePipes(new ZodValidationPipe(contactSchema))
   createContact(@Tenant() ctx: RequestContext, @Param('id') customerId: string, @Body() body: z.infer<typeof contactSchema>) {
     return this.crm.createContact(ctx, customerId, body);
+  }
+
+  @Patch('contacts/:id')
+  @UsePipes(new ZodValidationPipe(contactSchema.partial()))
+  updateContact(@Tenant() ctx: RequestContext, @Param('id') id: string, @Body() body: Partial<z.infer<typeof contactSchema>>) {
+    return this.crm.updateContact(ctx, id, body);
+  }
+
+  @Delete('contacts/:id')
+  deleteContact(@Tenant() ctx: RequestContext, @Param('id') id: string) {
+    return this.crm.deleteContact(ctx, id);
   }
 }

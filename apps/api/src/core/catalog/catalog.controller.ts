@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UsePipes } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UsePipes } from '@nestjs/common';
 import { z } from 'zod';
 import { Tenant, RequestContext } from '../../common/request-context';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -29,5 +29,16 @@ export class CatalogController {
   @UsePipes(new ZodValidationPipe(productSchema))
   create(@Tenant() ctx: RequestContext, @Body() body: z.infer<typeof productSchema>) {
     return this.catalog.create(ctx, body);
+  }
+
+  @Patch('items/:id')
+  @UsePipes(new ZodValidationPipe(productSchema.partial()))
+  update(@Tenant() ctx: RequestContext, @Param('id') id: string, @Body() body: Partial<z.infer<typeof productSchema>>) {
+    return this.catalog.update(ctx, id, body);
+  }
+
+  @Delete('items/:id')
+  remove(@Tenant() ctx: RequestContext, @Param('id') id: string) {
+    return this.catalog.remove(ctx, id);
   }
 }

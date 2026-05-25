@@ -47,4 +47,42 @@ export class InvoicesService {
       include: { lines: true },
     });
   }
+
+  async update(ctx: RequestContext, id: string, input: any) {
+    const { lines, ...data } = input;
+    const computed = lines ? totals(lines) : {};
+    return this.prisma.$transaction(async (tx) => {
+      if (lines) {
+        await tx.invoiceLine.deleteMany({ where: { tenantId: ctx.tenantId, invoiceId: id } });
+      }
+      return tx.invoice.update({
+        where: { id, tenantId: ctx.tenantId },
+        data: {
+          ...data,
+          ...computed,
+          ...(lines
+            ? {
+              lines: {
+                create: lines.map((line: any) => ({
+                  tenantId: ctx.tenantId,
+                  ...line,
+                  total: line.quantity * line.unitPrice * (1 + line.taxRate / 100),
+                })),
+              },
+            }
+            : {}),
+        },
+        include: { lines: true, payments: true },
+      });
+    });
+  }
+
+  async remove(ctx: RequestContext, id: string) {
+    await this.prisma.$transaction([
+      this.prisma.payment.deleteMany({ where: { tenantId: ctx.tenantId, invoiceId: id } }),
+      this.prisma.invoiceLine.deleteMany({ where: { tenantId: ctx.tenantId, invoiceId: id } }),
+      this.prisma.invoice.delete({ where: { id, tenantId: ctx.tenantId } }),
+    ]);
+    return { deleted: true };
+  }
 }

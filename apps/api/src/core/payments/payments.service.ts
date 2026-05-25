@@ -26,4 +26,22 @@ export class PaymentsService {
       return payment;
     });
   }
+
+  async remove(ctx: RequestContext, id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findFirstOrThrow({ where: { id, tenantId: ctx.tenantId } });
+      const invoice = await tx.invoice.findFirstOrThrow({ where: { id: payment.invoiceId, tenantId: ctx.tenantId } });
+      const amountPaid = Math.max(0, Number(invoice.amountPaid) - Number(payment.amount));
+      await tx.payment.delete({ where: { id } });
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          amountPaid,
+          paymentStatus: amountPaid <= 0 ? 'PENDING' : amountPaid >= Number(invoice.total) ? 'PAID' : 'PARTIAL',
+          status: amountPaid >= Number(invoice.total) ? 'PAID' : 'SENT',
+        },
+      });
+      return { deleted: true };
+    });
+  }
 }

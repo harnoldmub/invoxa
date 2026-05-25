@@ -13,4 +13,13 @@ export class TemplatesService {
   create(ctx: RequestContext, input: any) {
     return this.prisma.documentTemplate.create({ data: { tenantId: ctx.tenantId, ...input } });
   }
+
+  update(ctx: RequestContext, id: string, input: any) {
+    return this.prisma.documentTemplate.update({ where: { id, tenantId: ctx.tenantId }, data: input });
+  }
+
+  async remove(ctx: RequestContext, id: string) {
+    await this.prisma.documentTemplate.delete({ where: { id, tenantId: ctx.tenantId } });
+    return { deleted: true };
+  }
 }
