@@ -234,9 +234,9 @@ const initialGarages: GarageProfile[] = [
 const initialAllData: Record<string, GarageData> = {
   g1: {
     customers: [
-      { id: 'c1', name: 'Martin Services', companyName: 'Martin Services SARL', email: 'contact@martin.example', phone: '06 21 48 90 12', mobile: '06 21 48 90 13', type: 'Entreprise', taxNumber: 'FR 45 123456789', paymentTerms: '30 jours', currency: 'EUR', website: 'martin-services.example', billingAddress: '12 rue des Ateliers, 33000 Bordeaux', shippingAddress: '12 rue des Ateliers, 33000 Bordeaux', notes: 'Client flotte utilitaires.' },
-      { id: 'c2', name: 'Cabinet Dentaire Nova', companyName: 'Cabinet Dentaire Nova', email: 'admin@nova.example', phone: '05 59 11 20 30', mobile: '06 70 10 20 30', type: 'Professionnel', taxNumber: 'FR 31 987654321', paymentTerms: 'Comptant', currency: 'EUR', website: 'nova-dentaire.example', billingAddress: '8 avenue Santé, 64000 Pau', shippingAddress: '8 avenue Santé, 64000 Pau', notes: 'Priorité véhicule de remplacement.' },
-      { id: 'c3', name: 'Logisud', companyName: 'Logisud Transport', email: 'fleet@logisud.example', phone: '04 88 91 42 10', mobile: '06 88 91 42 10', type: 'Flotte', taxNumber: 'FR 89 456789123', paymentTerms: '45 jours', currency: 'EUR', website: 'logisud.example', billingAddress: '22 quai Logistique, 13002 Marseille', shippingAddress: 'Dépôt Sud, 13015 Marseille', notes: 'Validation par responsable parc.' },
+      { id: 'c1', reference: 'DE00001', name: 'Martin Services', companyName: 'Martin Services SARL', email: 'contact@martin.example', phone: '06 21 48 90 12', mobile: '06 21 48 90 13', type: 'Entreprise', taxNumber: 'FR 45 123456789', paymentTerms: '30 jours', currency: 'EUR', website: 'martin-services.example', billingAddress: '12 rue des Ateliers, 33000 Bordeaux', shippingAddress: '12 rue des Ateliers, 33000 Bordeaux', notes: 'Client flotte utilitaires.' },
+      { id: 'c2', reference: 'DE00002', name: 'Cabinet Dentaire Nova', companyName: 'Cabinet Dentaire Nova', email: 'admin@nova.example', phone: '05 59 11 20 30', mobile: '06 70 10 20 30', type: 'Professionnel', taxNumber: 'FR 31 987654321', paymentTerms: 'Comptant', currency: 'EUR', website: 'nova-dentaire.example', billingAddress: '8 avenue Santé, 64000 Pau', shippingAddress: '8 avenue Santé, 64000 Pau', notes: 'Priorité véhicule de remplacement.' },
+      { id: 'c3', reference: 'DE00003', name: 'Logisud', companyName: 'Logisud Transport', email: 'fleet@logisud.example', phone: '04 88 91 42 10', mobile: '06 88 91 42 10', type: 'Flotte', taxNumber: 'FR 89 456789123', paymentTerms: '45 jours', currency: 'EUR', website: 'logisud.example', billingAddress: '22 quai Logistique, 13002 Marseille', shippingAddress: 'Dépôt Sud, 13015 Marseille', notes: 'Validation par responsable parc.' },
     ],
     vehicles: [
       { id: 'v1', plate: 'AB-482-KL', customerId: 'c1', model: 'Renault Master', mileage: 182400, status: 'Diagnostic' },
@@ -244,8 +244,8 @@ const initialAllData: Record<string, GarageData> = {
       { id: 'v3', plate: 'PT-902-RS', customerId: 'c3', model: 'Mercedes Vito', mileage: 241850, status: 'Prêt' },
     ],
     invoices: [
-      { id: 'f1', number: 'FAC-2026-0098', customerId: 'c2', vehicleId: 'v2', paid: 389, status: 'Payée', lines: [{ id: 'l1', productId: 'p2', reference: 'REF-P2', name: 'Kit de freins', quantity: 4.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-01', dueDate: '2026-05-31' },
-      { id: 'f2', number: 'FAC-2026-0099', customerId: 'c1', vehicleId: 'v1', paid: 250, status: 'Acompte', lines: [{ id: 'l2', productId: 'p1', reference: 'REF-P1', name: 'Vidange complète', quantity: 1, unitPrice: 89, taxRate: 20 }, { id: 'l3', productId: 'p3', reference: 'REF-P3', name: 'Filtre à air', quantity: 2, unitPrice: 64, taxRate: 20 }], issueDate: '2026-05-10', dueDate: '2026-06-10', notes: 'Acompte de 250 EUR recu le 13 mai.' },
+      { id: 'f1', number: 'FA2605-7B3A', customerId: 'c2', customerReference: 'DE00002', vehicleId: 'v2', paid: 389, status: 'Payée', lines: [{ id: 'l1', productId: 'p2', reference: 'REF-8U2M', name: 'Kit de freins', quantity: 4.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-01', dueDate: '2026-05-31' },
+      { id: 'f2', number: 'FA2605-9D4C', customerId: 'c1', customerReference: 'DE00001', vehicleId: 'v1', paid: 250, status: 'Acompte', lines: [{ id: 'l2', productId: 'p1', reference: 'REF-4X9P', name: 'Vidange complète', quantity: 1, unitPrice: 89, taxRate: 20 }, { id: 'l3', productId: 'p3', reference: 'REF-2K7L', name: 'Filtre à air', quantity: 2, unitPrice: 64, taxRate: 20 }, { id: 'l4', productId: 'p2', reference: 'REF-8U2M', name: "Main-d'oeuvre mécanique", quantity: 1.5, unitPrice: 72, taxRate: 20 }], issueDate: '2026-05-10', dueDate: '2026-06-10', notes: 'Acompte de 250 EUR recu le 13 mai.' },
     ],
     payments: [
       { id: 'pay1', invoiceId: 'f1', amount: 389, method: 'Carte', date: '2026-05-12' },
@@ -309,9 +309,9 @@ export function App() {
   const [relationTarget, setRelationTarget] = useState<RelationTarget>(null);
   const [relationHistory, setRelationHistory] = useState<NonNullable<RelationTarget>[]>([]);
   const [products, setProducts] = useState<Product[]>([
-    { id: 'p1', name: 'Diagnostic électronique', type: 'Service', unit: 'forfait', unitPrice: 89, taxRate: 20 },
-    { id: 'p2', name: "Main-d'oeuvre mécanique", type: 'Service', unit: 'heure', unitPrice: 72, taxRate: 20 },
-    { id: 'p3', name: 'Plaquettes de frein', type: 'Produit', unit: 'jeu', unitPrice: 64, taxRate: 20 },
+    { id: 'p1', reference: 'REF-4X9P', name: 'Diagnostic électronique', type: 'Service', unit: 'forfait', unitPrice: 89, taxRate: 20 },
+    { id: 'p2', reference: 'REF-8U2M', name: "Main-d'oeuvre mécanique", type: 'Service', unit: 'heure', unitPrice: 72, taxRate: 20 },
+    { id: 'p3', reference: 'REF-2K7L', name: 'Plaquettes de frein', type: 'Produit', unit: 'jeu', unitPrice: 64, taxRate: 20 },
   ]);
   const [templates, setTemplates] = useState<Template[]>([
     { id: 't1', name: 'Garage Central - Lyon', type: 'Facture', activity: 'Garage', status: 'Par défaut', ...defaultTemplate },
@@ -949,7 +949,7 @@ function CrmPage({
     }
   }, [filtered, selectedCustomerId]);
   const openCreate = () => { setEditing(null); setForm(empty); setModalOpen(true); };
-  const openEdit = (c: Customer) => { setEditing(c); setForm({ name: c.name, companyName: c.companyName, email: c.email, phone: c.phone, mobile: c.mobile, type: c.type, taxNumber: c.taxNumber, paymentTerms: c.paymentTerms, currency: c.currency, website: c.website, billingAddress: c.billingAddress, shippingAddress: c.shippingAddress, notes: c.notes }); setModalOpen(true); };
+  const openEdit = (c: Customer) => { setEditing(c); setForm({ name: c.name, reference: c.reference, companyName: c.companyName, email: c.email, phone: c.phone, mobile: c.mobile, type: c.type, taxNumber: c.taxNumber, paymentTerms: c.paymentTerms, currency: c.currency, website: c.website, billingAddress: c.billingAddress, shippingAddress: c.shippingAddress, notes: c.notes }); setModalOpen(true); };
   const closeModal = () => setModalOpen(false);
   const handleSubmit = () => { if (!form.name) return; if (editing) { onUpdate(editing.id, form); } else { onCreate(form); } closeModal(); };
   const selectedCustomer = selectedCustomerId ? customers.find((customer) => customer.id === selectedCustomerId) ?? filtered[0] : undefined;
@@ -1311,7 +1311,7 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
     }
   }, [filtered, selectedProductId]);
   const openCreate = () => { setEditing(null); setForm(empty); setModalOpen(true); };
-  const openEdit = (p: Product) => { setEditing(p); setForm({ name: p.name, type: p.type, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate }); setModalOpen(true); };
+  const openEdit = (p: Product) => { setEditing(p); setForm({ name: p.name, reference: p.reference, type: p.type, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate }); setModalOpen(true); };
   const closeModal = () => setModalOpen(false);
   const handleSubmit = () => { if (!form.name) return; if (editing) { onUpdate(editing.id, form); } else { onCreate(form); } closeModal(); };
   const usage = (productId: string) => quotes.filter((quote) => quote.lines.some((line) => line.productId === productId)).length + invoices.filter((invoice) => invoice.lines.some((line) => line.productId === productId)).length;
@@ -1369,7 +1369,7 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
                 <button key={product.id} type="button" onClick={() => { setSelectedProductId(product.id); setActiveTab('overview'); }} className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-muted/70 ${selectedProductId === product.id ? 'bg-accent/60' : ''}`}>
                   <input type="checkbox" className="h-4 w-4 rounded border-border" onClick={(event) => event.stopPropagation()} />
                   <div className="min-w-0">
-                    <div className="truncate font-semibold">{product.name}</div>
+                    <div className="truncate font-semibold">{product.reference ? `${product.reference} - ${product.name}` : product.name}</div>
                     <div className="mt-1 text-xs text-muted-foreground">{product.type} · {product.unit}{rowInactive ? ' · Inactif' : ''}</div>
                   </div>
                   <div className="font-semibold">{money(product.unitPrice)}</div>
@@ -1389,7 +1389,7 @@ function CatalogPage({ customers, products, quotes, invoices, query, onCreate, o
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border px-6 py-5">
               <div className="min-w-0">
-                <h2 className="truncate text-2xl sm:text-3xl font-semibold">{selectedProduct.name}</h2>
+                <h2 className="truncate text-2xl sm:text-3xl font-semibold">{selectedProduct.reference ? `${selectedProduct.reference} - ${selectedProduct.name}` : selectedProduct.name}</h2>
                 {isInactive && <div className="mt-2 inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">Inactif</div>}
               </div>
               <div className="relative flex items-center gap-2">
@@ -1930,10 +1930,10 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
     const borderBottom = isLast ? 'none' : '1px dashed #999';
     const tdBase = `padding:5px 7px;border-bottom:${borderBottom};border-right:1px solid #aaa`;
     const tdLast = `padding:5px 7px;border-bottom:${borderBottom}`;
-    const refText = line.reference ? `[${line.reference}] ` : '';
+    const refText = line.reference ? `${line.reference} - ` : '';
     const nameText = line.name || product?.name || 'Article';
     return `<tr>
-      <td style="${tdBase}">- ${refText}${nameText}</td>
+      <td style="${tdBase}">${refText}${nameText}</td>
       <td style="${tdBase};text-align:right">${line.taxRate}%</td>
       <td style="${tdBase};text-align:right">${fmtN(line.unitPrice)}</td>
       <td style="${tdBase};text-align:right">${line.quantity}</td>
@@ -1962,7 +1962,7 @@ function exportInvoicePDF(invoice: Invoice, customers: Customer[], vehicles: Veh
     </tr></tbody>
   </table>
 </div>` : '';
-  const cgvText = "Les marchandises livrées demeurent notre propriété jusqu'au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d'intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Un achat effectué en magasin est réputé ferme et définitif. L'acheteur ne pourra retourner un produit acheté en magasin que si celui-ci a un défaut ou un vice caché qui le rend inutilisable. Dans les autres cas (changement d'avis, erreur de choix technique, erreur de diagnostic etc...) la société CENTER AUTO PIECES assure une politique commerciale d'échange ou de remboursement par avoir si les conditions de retours sont intégralement respectées : 1) État du produit neuf et complet, sachet plastique non ouvert 2) Conformité de l'emballage d'origine 3) Délai de rétractation de 1 mois (hors pièces électriques et commandes spécifiques de pièces non stockées).";
+  const cgvText = template.cgv || '';
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"><title>${documentLabel} ${invoice.number}</title>
@@ -2151,10 +2151,10 @@ function InvoicePreview({ form, customers, vehicles, products, template = defaul
                 const product = products.find((p) => p.id === line.productId);
                 const ht = line.quantity * line.unitPrice;
                 const ttc = ht * (1 + line.taxRate / 100);
-                const refText = line.reference ? `[${line.reference}] ` : '';
+                const refText = line.reference ? `${line.reference} - ` : '';
                 const nameText = line.name || product?.name || '—';
                 const isLast = i === form.lines.length - 1;
-                return <tr key={i} style={{ borderBottom: isLast ? 'none' : '1px dashed #bbb', color: '#1a2744' }}><td className="px-2 py-1 text-[9.5px] border-r border-[#bbb] truncate">- {refText}{nameText}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.taxRate}%</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(line.unitPrice)}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.quantity}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(ht)}</td><td className="px-2 py-1 text-right text-[9.5px]">{money(ttc)}</td></tr>;
+                return <tr key={i} style={{ borderBottom: isLast ? 'none' : '1px dashed #bbb', color: '#1a2744' }}><td className="px-2 py-1 text-[9.5px] border-r border-[#bbb] truncate">{refText}{nameText}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.taxRate}%</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(line.unitPrice)}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{line.quantity}</td><td className="px-2 py-1 text-right text-[9.5px] border-r border-[#bbb]">{money(ht)}</td><td className="px-2 py-1 text-right text-[9.5px]">{money(ttc)}</td></tr>;
               })}
               <tr className="h-[220px]">
                 <td className="border-r border-[#bbb]"></td>
@@ -2224,7 +2224,7 @@ function InvoicePreview({ form, customers, vehicles, products, template = defaul
         {form.notes && <div className="mt-4 rounded-lg bg-muted px-3 py-2.5"><div className="mb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Notes</div><div className="text-[11px] text-muted-foreground">{form.notes}</div></div>}
 
         <div className="mt-8 text-[8px] leading-relaxed text-muted-foreground text-justify">
-          <strong>CGV :</strong> Les marchandises livrées demeurent notre propriété jusqu'au paiement intégral en application de la loi du 12 Mai 1980. Retard de paiement : pénalités calculées sur la base de 3 fois le taux d'intérêt légal en vigueur + indemnité forfaitaire de 40 € pour frais de recouvrement. Un achat effectué en magasin est réputé ferme et définitif. L'acheteur ne pourra retourner un produit acheté en magasin que si celui-ci a un défaut ou un vice caché qui le rend inutilisable. Dans les autres cas (changement d'avis, erreur de choix technique, erreur de diagnostic etc...) la société CENTER AUTO PIECES assure une politique commerciale d'échange ou de remboursement par avoir si les conditions de retours sont intégralement respectées : 1) État du produit neuf et complet, sachet plastique non ouvert 2) Conformité de l'emballage d'origine 3) Délai de rétractation de 1 mois (hors pièces électriques et commandes spécifiques de pièces non stockées).
+          <strong>CGV :</strong> {template.cgv}
         </div>
 
         <div className="relative border-t border-slate-300 mt-4 pt-3 text-[8px] text-muted-foreground text-center">
@@ -3349,6 +3349,7 @@ function HelpPage({ setActivePage }: { setActivePage: (page: Page) => void }) {
 function CustomerFields({ value, onChange }: { value: Omit<Customer, 'id'>; onChange: (value: Omit<Customer, 'id'>) => void }) {
   return (
     <>
+      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Référence client</label><Input value={value.reference || ''} onChange={(event) => onChange({ ...value, reference: event.target.value })} placeholder="CLI-001" /></div>
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={value.name} onChange={(event) => onChange({ ...value, name: event.target.value })} placeholder="Martin Services" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Société</label><Input value={value.companyName} onChange={(event) => onChange({ ...value, companyName: event.target.value })} placeholder="Martin Services SARL" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Type</label><Select value={value.type} onChange={(event) => onChange({ ...value, type: event.target.value })}><option>Entreprise</option><option>Particulier</option><option>Professionnel</option><option>Flotte</option></Select></div>
@@ -3369,6 +3370,7 @@ function CustomerFields({ value, onChange }: { value: Omit<Customer, 'id'>; onCh
 function ProductFields({ value, onChange }: { value: Omit<Product, 'id'>; onChange: (value: Omit<Product, 'id'>) => void }) {
   return (
     <>
+      <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Référence / Identifiant</label><Input value={value.reference || ''} onChange={(event) => onChange({ ...value, reference: event.target.value })} placeholder="REF-1234" /></div>
       <div className="col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Nom <span className="text-red-500">*</span></label><Input value={value.name} onChange={(event) => onChange({ ...value, name: event.target.value })} placeholder="Main-d'oeuvre mécanique" /></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Type</label><Select value={value.type} onChange={(event) => onChange({ ...value, type: event.target.value })}><option>Service</option><option>Produit</option><option>Forfait</option></Select></div>
       <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Unité</label><Input value={value.unit} onChange={(event) => onChange({ ...value, unit: event.target.value })} placeholder="heure, forfait, pièce..." /></div>
